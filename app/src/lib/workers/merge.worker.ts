@@ -7,7 +7,7 @@
 import type { MergeRequest, MergeSuccess, MergeError } from './types';
 
 const normalizeBase = (base: string): string => (base.endsWith('/') ? base : `${base}/`);
-const BASE_URL = normalizeBase(import.meta.env?.BASE_URL ?? '/');
+const BASE_URL = normalizeBase(import.meta.env.BASE_URL || '/');
 const resolveStaticUrl = (path: string): string =>
 	new URL(`${BASE_URL}${path}`, self.location.origin).toString();
 
