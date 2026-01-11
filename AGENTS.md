@@ -28,6 +28,8 @@ npm install          # Install dependencies
 npm run dev          # Dev server
 npm run build        # Production build
 npm run preview      # Preview production build
+npm run check        # Type check
+npm run lint         # Lint and format (fixes)
 ```
 
 ### Full local build

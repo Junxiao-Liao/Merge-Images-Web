@@ -23,6 +23,22 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Rust build
+        working-directory: engine
+        run: cargo build
+
+      - name: Rust lint (fmt)
+        working-directory: engine
+        run: cargo fmt -- --check
+
+      - name: Rust lint (clippy)
+        working-directory: engine
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Rust test
+        working-directory: engine
+        run: cargo test
+
       - name: Install wasm-pack
         run: cargo install wasm-pack
 
@@ -40,6 +56,14 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: npm ci
+
+      - name: Svelte lint
+        working-directory: app
+        run: npm run lint
+
+      - name: Svelte test
+        working-directory: app
+        run: npm run check
 
       - name: Build
         working-directory: app
