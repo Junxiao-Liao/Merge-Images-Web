@@ -6,8 +6,13 @@
 
 import type { MergeRequest, MergeSuccess, MergeError } from './types';
 
-// Dynamic import path - resolved at runtime relative to the worker
-const WASM_PATH = '/wasm/merge_images_engine.js';
+const normalizeBase = (base: string): string => (base.endsWith('/') ? base : `${base}/`);
+const BASE_URL = normalizeBase(import.meta.env?.BASE_URL ?? '/');
+const resolveStaticUrl = (path: string): string =>
+	new URL(`${BASE_URL}${path}`, self.location.origin).toString();
+
+// Dynamic import path - resolved at runtime relative to app base
+const WASM_PATH = resolveStaticUrl('wasm/merge_images_engine.js');
 
 // WASM module interface
 interface WasmModule {
@@ -48,7 +53,7 @@ async function ensureInitialized(): Promise<void> {
 		}
 
 		// Initialize WASM with the .wasm file path
-		await module.default('/wasm/merge_images_engine_bg.wasm');
+		await module.default(resolveStaticUrl('wasm/merge_images_engine_bg.wasm'));
 		wasmModule = module;
 	})();
 
