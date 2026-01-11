@@ -82,6 +82,18 @@ export interface MergeCallbacks {
 	onError: ErrorCallback;
 }
 
+function normalizeOptions(options: MergeOptions): MergeOptions {
+	return {
+		direction: options.direction,
+		background: {
+			r: options.background.r,
+			g: options.background.g,
+			b: options.background.b,
+			a: options.background.a
+		}
+	};
+}
+
 /**
  * Start a merge operation.
  */
@@ -101,8 +113,8 @@ export async function mergeImages(
 	// Send merge request
 	w.postMessage({
 		type: 'MERGE_REQUEST',
-		files,
-		options,
+		files: [...files],
+		options: normalizeOptions(options),
 		maxOutPixels
 	});
 }
