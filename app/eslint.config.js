@@ -30,7 +30,7 @@ export default [
 			}
 		}
 	},
-	...svelte.configs['flat/all'],
+	...svelte.configs['flat/recommended'],
 	...svelte.configs['flat/prettier'],
 	{
 		languageOptions: {
@@ -57,7 +57,13 @@ export default [
 					script: ['ts'],
 					style: ['css']
 				}
-			]
+			],
+			// Disable for Tailwind CSS - classes are processed at build time
+			'svelte/no-unused-class-name': 'off',
+			// Allow implicit button type for simple buttons
+			'svelte/button-has-type': 'off',
+			// Disable base no-unused-vars as it incorrectly flags TS interface params
+			'no-unused-vars': 'off'
 		}
 	},
 	prettier,

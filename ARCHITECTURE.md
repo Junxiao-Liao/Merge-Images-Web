@@ -24,8 +24,10 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 ## 2. Technology stack
 
 ### 2.1 Frontend
-- SvelteKit (static adapter)
-- Vite
+- SvelteKit 5 (static adapter) with Svelte 5 runes
+- Vite 7 with Tailwind CSS v4
+- Skeleton UI v4 (component library)
+- svelte-dnd-action (drag-drop reordering)
 - Playwright for E2E
 - `<img>`-based preview rendering (main thread) in a scrollable container
 
@@ -40,11 +42,34 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 - Web Worker for CPU-heavy processing
 - Transfer lists for large `ArrayBuffer` results to avoid copies
 
-## 3. Repository layout (suggested)
+## 3. Repository layout
 
-- `/app` — SvelteKit UI
-- `/engine` — Rust crate compiled to WASM
-- `/.github/workflows` — CI
+```
+/app                          — SvelteKit UI
+  /src
+    /lib
+      /components             — Svelte components
+        ImageMerger.svelte    — Main orchestrator
+        EmptyState.svelte     — File dropzone
+        ImageList.svelte      — Thumbnail grid with drag-drop
+        ImageItem.svelte      — Single thumbnail with controls
+        MergeOptions.svelte   — Direction + background picker
+        Preview.svelte        — Result display + download
+        ErrorDialog.svelte    — Error modal
+      /utils                  — Utility functions
+        deviceClass.ts        — Mobile/desktop detection
+        pixelLimits.ts        — Adaptive max pixel limits
+        download.ts           — Download with Safari fallback
+        thumbnails.ts         — Object URL management
+        workerManager.ts      — WASM worker communication
+      /workers                — Web Worker
+        merge.worker.ts       — WASM engine wrapper
+        types.ts              — Message protocol types
+    /routes                   — SvelteKit routes
+  /static/wasm                — WASM artifacts (built)
+/engine                       — Rust crate compiled to WASM
+/.github/workflows            — CI
+```
 
 ## 4. Runtime components and responsibilities
 

@@ -3,6 +3,9 @@
 ## Project structure
 - `/engine` — Rust/WASM merge engine
 - `/app` — SvelteKit frontend
+  - `/src/lib/components` — UI components (ImageMerger, EmptyState, ImageList, etc.)
+  - `/src/lib/utils` — Utilities (deviceClass, pixelLimits, download, workerManager)
+  - `/src/lib/workers` — Web Worker for WASM integration
 
 ## Prerequisites
 - Rust toolchain (`rustup`)
