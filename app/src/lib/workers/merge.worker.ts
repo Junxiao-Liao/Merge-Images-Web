@@ -7,9 +7,13 @@
 import type { MergeRequest, MergeSuccess, MergeError } from './types';
 
 const normalizeBase = (base: string): string => (base.endsWith('/') ? base : `${base}/`);
-const BASE_URL = normalizeBase(import.meta.env.BASE_URL || '/');
+const workerUrl = new URL(import.meta.url);
+const appRootIndex = workerUrl.pathname.indexOf('/_app/');
+const derivedBase = appRootIndex > 0 ? workerUrl.pathname.slice(0, appRootIndex) : '';
+const envBase = import.meta.env.BASE_URL || '/';
+const BASE_URL = normalizeBase(derivedBase || envBase || '/');
 const resolveStaticUrl = (path: string): string =>
-	new URL(`${BASE_URL}${path}`, self.location.origin).toString();
+	new URL(`${BASE_URL}${path}`, workerUrl.origin).toString();
 
 // Dynamic import path - resolved at runtime relative to app base
 const WASM_PATH = resolveStaticUrl('wasm/merge_images_engine.js');
