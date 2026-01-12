@@ -19,16 +19,9 @@ const resolveBase = (basePath?: string): string => {
 	if (basePath && basePath.length > 0) {
 		return normalizeBase(basePath);
 	}
-	const derived = deriveBaseFromWorker();
-	return normalizeBase(derived || '/');
+	return normalizeBase(deriveBaseFromWorker() || '/');
 };
-
-let runtimeBase = resolveBase();
-const resolveStaticUrl = (path: string): string =>
-	new URL(`${runtimeBase}${path}`, self.location.origin).toString();
-
-// Dynamic import path - resolved at runtime relative to app base
-const getWasmModuleUrl = (): string => resolveStaticUrl('wasm/merge_images_engine.js');
+const toAbsoluteUrl = (url: string): string => new URL(url, self.location.origin).toString();
 
 // WASM module interface
 interface WasmModule {
@@ -61,16 +54,18 @@ async function ensureInitialized(basePath?: string): Promise<void> {
 	if (wasmModule) return;
 
 	initPromise ??= (async () => {
-		runtimeBase = resolveBase(basePath);
+		const resolvedBase = resolveBase(basePath);
 		// Import the WASM module
-		const module = (await import(/* @vite-ignore */ getWasmModuleUrl())) as unknown;
+		const moduleUrl = toAbsoluteUrl(`${resolvedBase}wasm/merge_images_engine.js`);
+		const wasmUrl = toAbsoluteUrl(`${resolvedBase}wasm/merge_images_engine_bg.wasm`);
+		const module = (await import(/* @vite-ignore */ moduleUrl)) as unknown;
 
 		if (!isWasmModule(module)) {
 			throw new Error('Invalid WASM module shape');
 		}
 
 		// Initialize WASM with the .wasm file path
-		await module.default(resolveStaticUrl('wasm/merge_images_engine_bg.wasm'));
+		await module.default(wasmUrl);
 		wasmModule = module;
 	})();
 
