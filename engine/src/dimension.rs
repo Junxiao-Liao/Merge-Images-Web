@@ -83,17 +83,6 @@ pub fn compute_output_size(scaled_dimensions: &[(u32, u32)], direction: Directio
     }
 }
 
-/// Checks if output dimensions exceed the pixel limit.
-pub fn check_pixel_limit(width: u64, height: u64, max_pixels: Option<u64>) -> bool {
-    match max_pixels {
-        Some(max) => {
-            let total = (width as u128) * (height as u128);
-            total <= max as u128
-        }
-        None => true,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,22 +193,5 @@ mod tests {
     fn test_output_size_empty() {
         let dims: Vec<(u32, u32)> = vec![];
         assert_eq!(compute_output_size(&dims, Direction::Vertical), (0, 0));
-    }
-
-    #[test]
-    fn test_pixel_limit_within() {
-        assert!(check_pixel_limit(1000, 1000, Some(2_000_000)));
-        assert!(check_pixel_limit(1000, 2000, Some(2_000_000)));
-    }
-
-    #[test]
-    fn test_pixel_limit_exceeded() {
-        assert!(!check_pixel_limit(2000, 2000, Some(2_000_000))); // 4M > 2M
-        assert!(!check_pixel_limit(1001, 2000, Some(2_000_000))); // 2002000 > 2M
-    }
-
-    #[test]
-    fn test_pixel_limit_none() {
-        assert!(check_pixel_limit(10000, 10000, None)); // No limit
     }
 }

@@ -10,7 +10,6 @@
 
 	function getErrorTitle(code: string): string {
 		const titles: Record<string, string> = {
-			TOO_LARGE: 'Output Too Large',
 			DECODE_FAILED: 'Image Decode Failed',
 			NO_IMAGES: 'No Images',
 			INTERNAL_ERROR: 'Unexpected Error'
@@ -18,21 +17,7 @@
 		return titles[code] || 'Error';
 	}
 
-	function formatPixels(pixels: number): string {
-		if (pixels >= 1_000_000) {
-			return `${(pixels / 1_000_000).toFixed(1)}M`;
-		}
-		return pixels.toLocaleString();
-	}
-
 	function getErrorSuggestion(err: MergeError): string {
-		if (err.code === 'TOO_LARGE' && err.details) {
-			const { outPixels, maxOutPixels } = err.details;
-			if (outPixels && maxOutPixels) {
-				return `The merged image would be ${formatPixels(outPixels)} pixels, but your device supports up to ${formatPixels(maxOutPixels)} pixels. Try removing some images or using lower resolution inputs.`;
-			}
-		}
-
 		if (err.code === 'DECODE_FAILED' && err.details?.fileIndex !== undefined) {
 			return `Failed to decode image #${err.details.fileIndex + 1}. The file may be corrupted or in an unsupported format.`;
 		}

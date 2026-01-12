@@ -24,7 +24,6 @@ pub fn greet() -> String {
 /// * `options` - JS Object with merge options:
 ///   - `direction`: "vertical" | "horizontal"
 ///   - `background`: { r, g, b, a } (0-255 each)
-///   - `maxOutPixels`: number (optional)
 ///
 /// # Returns
 /// * On success: Uint8Array containing PNG-encoded output
@@ -111,15 +110,6 @@ fn parse_options(options: &JsValue) -> Result<MergeOptions, JsValue> {
         merge_options.background = BackgroundColor::new(r, g, b, a);
     }
 
-    // Parse maxOutPixels
-    if let Ok(max_val) = Reflect::get(options, &JsValue::from_str("maxOutPixels"))
-        && let Some(max_num) = max_val.as_f64()
-        && max_num.is_finite()
-        && max_num > 0.0
-    {
-        merge_options.max_out_pixels = Some(max_num.min(u64::MAX as f64) as u64);
-    }
-
     Ok(merge_options)
 }
 
@@ -148,51 +138,22 @@ fn create_error_object(error: &MergeError) -> JsValue {
     );
 
     // Add error-specific details
-    match error {
-        MergeError::DecodeError {
-            index, file_name, ..
-        } => {
+    if let MergeError::DecodeError {
+        index, file_name, ..
+    } = error
+    {
+        let _ = Reflect::set(
+            &obj,
+            &JsValue::from_str("fileIndex"),
+            &JsValue::from_f64(*index as f64),
+        );
+        if let Some(name) = file_name {
             let _ = Reflect::set(
                 &obj,
-                &JsValue::from_str("fileIndex"),
-                &JsValue::from_f64(*index as f64),
-            );
-            if let Some(name) = file_name {
-                let _ = Reflect::set(
-                    &obj,
-                    &JsValue::from_str("fileName"),
-                    &JsValue::from_str(name),
-                );
-            }
-        }
-        MergeError::TooLarge {
-            width,
-            height,
-            pixels,
-            max,
-        } => {
-            let _ = Reflect::set(
-                &obj,
-                &JsValue::from_str("width"),
-                &JsValue::from_f64(*width as f64),
-            );
-            let _ = Reflect::set(
-                &obj,
-                &JsValue::from_str("height"),
-                &JsValue::from_f64(*height as f64),
-            );
-            let _ = Reflect::set(
-                &obj,
-                &JsValue::from_str("outPixels"),
-                &JsValue::from_f64(*pixels as f64),
-            );
-            let _ = Reflect::set(
-                &obj,
-                &JsValue::from_str("maxOutPixels"),
-                &JsValue::from_f64(*max as f64),
+                &JsValue::from_str("fileName"),
+                &JsValue::from_str(name),
             );
         }
-        _ => {}
     }
 
     obj.into()

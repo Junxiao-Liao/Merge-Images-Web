@@ -65,9 +65,6 @@ pub struct MergeOptions {
     pub direction: Direction,
     #[serde(default)]
     pub background: BackgroundColor,
-    /// Maximum output pixels allowed. If None, no limit is enforced.
-    #[serde(default)]
-    pub max_out_pixels: Option<u64>,
 }
 
 #[cfg(test)]
@@ -102,6 +99,5 @@ mod tests {
     fn test_options_default() {
         let opts = MergeOptions::default();
         assert_eq!(opts.direction, Direction::Vertical);
-        assert!(opts.max_out_pixels.is_none());
     }
 }

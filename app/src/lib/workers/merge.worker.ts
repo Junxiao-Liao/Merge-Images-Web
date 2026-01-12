@@ -132,10 +132,6 @@ self.onmessage = async (event: MessageEvent<MergeRequest>) => {
 			background: request.options.background
 		};
 
-		if (request.maxOutPixels !== undefined) {
-			wasmOptions.maxOutPixels = request.maxOutPixels;
-		}
-
 		// Call WASM merge function
 		const result = wasmModule.merge_images(arrays, wasmOptions);
 
@@ -182,18 +178,6 @@ self.onmessage = async (event: MessageEvent<MergeRequest>) => {
 			// Copy error details
 			if ('fileIndex' in err && typeof err.fileIndex === 'number') {
 				details.fileIndex = err.fileIndex;
-			}
-			if ('width' in err && typeof err.width === 'number') {
-				details.width = err.width;
-			}
-			if ('height' in err && typeof err.height === 'number') {
-				details.height = err.height;
-			}
-			if ('outPixels' in err && typeof err.outPixels === 'number') {
-				details.outPixels = err.outPixels;
-			}
-			if ('maxOutPixels' in err && typeof err.maxOutPixels === 'number') {
-				details.maxOutPixels = err.maxOutPixels;
 			}
 		} else if (error instanceof Error) {
 			response.message = error.message;

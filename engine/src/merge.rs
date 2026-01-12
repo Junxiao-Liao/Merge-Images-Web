@@ -1,9 +1,7 @@
 use image::{DynamicImage, ImageReader, Rgba, RgbaImage};
 use std::io::Cursor;
 
-use crate::dimension::{
-    check_pixel_limit, compute_output_size, compute_scaled_dimensions, compute_target_dimension,
-};
+use crate::dimension::{compute_output_size, compute_scaled_dimensions, compute_target_dimension};
 use crate::error::MergeError;
 use crate::exif::{extract_orientation, normalize_orientation};
 use crate::scale::scale_image;
@@ -22,7 +20,7 @@ fn decode_image(bytes: &[u8]) -> Result<DynamicImage, String> {
 ///
 /// # Arguments
 /// * `images_data` - Vector of raw image bytes for each input image
-/// * `options` - Merge options (direction, background, pixel limit)
+/// * `options` - Merge options (direction, background)
 ///
 /// # Returns
 /// * `Ok(Vec<u8>)` - PNG-encoded output image bytes
@@ -73,25 +71,10 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
 
     // Step 5: Compute output size
     let (output_width, output_height) = compute_output_size(&scaled_dimensions, options.direction);
-    let output_pixels =
-        ((output_width as u128) * (output_height as u128)).min(u64::MAX as u128) as u64;
-
-    // Step 6: Check pixel limit (fail-fast)
-    if !check_pixel_limit(output_width, output_height, options.max_out_pixels) {
-        return Err(MergeError::TooLarge {
-            width: output_width,
-            height: output_height,
-            pixels: output_pixels,
-            max: options.max_out_pixels.unwrap_or(0),
-        });
-    }
 
     if output_width > u32::MAX as u64 || output_height > u32::MAX as u64 {
-        return Err(MergeError::TooLarge {
-            width: output_width,
-            height: output_height,
-            pixels: output_pixels,
-            max: options.max_out_pixels.unwrap_or(u64::MAX),
+        return Err(MergeError::EncodeError {
+            message: "Output dimensions exceed supported size".to_string(),
         });
     }
 
@@ -297,34 +280,6 @@ mod tests {
         assert_eq!(output_img.width(), 200); // max width
         // First image scaled from 100x50 to 200x100
         assert_eq!(output_img.height(), 150); // 100 + 50
-    }
-
-    #[test]
-    fn test_merge_pixel_limit_exceeded() {
-        let img1 = create_test_png(1000, 1000, Rgba([255, 0, 0, 255]));
-        let img2 = create_test_png(1000, 1000, Rgba([0, 255, 0, 255]));
-
-        let options = MergeOptions {
-            direction: Direction::Vertical,
-            max_out_pixels: Some(1_000_000), // 1M limit, but output would be 1000x2000 = 2M
-            ..Default::default()
-        };
-
-        let result = merge(vec![img1, img2], options);
-        assert!(matches!(result, Err(MergeError::TooLarge { .. })));
-
-        if let Err(MergeError::TooLarge {
-            width,
-            height,
-            pixels,
-            max,
-        }) = result
-        {
-            assert_eq!(width, 1000);
-            assert_eq!(height, 2000);
-            assert_eq!(pixels, 2_000_000);
-            assert_eq!(max, 1_000_000);
-        }
     }
 
     #[test]

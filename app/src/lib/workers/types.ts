@@ -24,7 +24,6 @@ export interface MergeRequest {
 	type: 'MERGE_REQUEST';
 	files: File[];
 	options: MergeOptions;
-	maxOutPixels?: number;
 	basePath?: string;
 }
 
@@ -45,10 +44,6 @@ export interface MergeError {
 	details?: {
 		fileIndex?: number;
 		fileName?: string;
-		width?: number;
-		height?: number;
-		outPixels?: number;
-		maxOutPixels?: number;
 	};
 }
 

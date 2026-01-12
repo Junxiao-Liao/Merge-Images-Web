@@ -80,45 +80,8 @@ The merge engine must:
   - upscaling is expected when needed,
 - concatenate scaled images in the selected order.
 
-### FR-5: Output size safeguards (adaptive; mobile-enforced)
-The app **MUST** fail fast (before allocating large buffers) for unreasonably large outputs.
-
-#### FR-5.1 Guardrail model
-- The app **MUST** compute the would-be output width/height up front and evaluate `out_pixels = width * height`.
-- The app **MUST** enforce an output pixel cap on **mobile-class** devices.
-- On **desktop-class** devices, the cap **MAY** be relaxed substantially, but a “hard ceiling” **SHOULD** still exist to prevent pathological allocation attempts.
-
-This design allows “the memory check” to effectively trigger only on mobile for typical usage, while still preventing extreme cases on desktop.
-
-#### FR-5.2 Device classification (best-effort)
-The app **MUST** classify the environment into one of:
-- `mobile`
-- `desktop`
-
-Classification **SHOULD** use a best-effort heuristic such as:
-- small viewport thresholds (e.g., min(width,height) < ~900 CSS px), and/or
-- coarse user-agent detection, and/or
-- `navigator.maxTouchPoints` + viewport heuristics.
-
-Classification is allowed to be imperfect; the cap model must remain safe under misclassification.
-
-#### FR-5.3 Pixel caps (v0.4 defaults)
-Define default caps as follows:
-
-**Mobile-enforced caps**
-- If `navigator.deviceMemory` is available:
-  - `<= 2` GiB: `max_out_pixels = 8_000_000`
-  - `<= 4` GiB: `max_out_pixels = 12_000_000`
-  - `> 4` GiB: `max_out_pixels = 16_000_000`
-- If `navigator.deviceMemory` is not available (e.g., Safari): `max_out_pixels = 12_000_000`
-
-**Desktop caps**: no caps
-
-#### FR-5.4 Messaging
-- If the merge is rejected by FR-5, the user-facing error **MUST**:
-  - state that the output would be too large for the current device,
-  - include the computed output dimensions and total pixels,
-  - provide one concrete suggestion (remove images, use fewer/lower-resolution inputs, or switch to desktop).
+### FR-5: Output size safeguards
+The app **MUST NOT** enforce output pixel caps or fail-fast memory checks. Merges should proceed without pre-check size limits.
 
 ### FR-6: Error handling and user feedback
 - If a file is unsupported or fails decode, the app **MUST** show a user-visible error that identifies the failing file(s).
@@ -176,18 +139,21 @@ Define default caps as follows:
   - deterministic output properties for small fixture images:
     - pixel-identical rendering is required;
     - byte-for-byte encoded equality is not required.
-- Playwright **SHOULD** include one “mobile profile” run (device emulation) that validates FR-5 behavior (TOO_LARGE on oversize fixtures) without making the fixture itself enormous.
 
 ### TR-2: Rust unit tests (required)
 - Unit tests **MUST** cover:
   - scaling target computation,
   - EXIF orientation normalization mapping,
   - deterministic dimension rounding,
-  - merge buffer offset computation,
-  - fail-fast pixel-cap checks given a supplied `max_out_pixels` parameter.
+  - merge buffer offset computation.
 
 ### TR-3: WASM boundary tests (recommended)
 - Include a small set of `wasm-bindgen-test` tests to validate the JS↔WASM contract and a basic end-to-end merge in a browser runtime.
+
+### TR-4: Post-modification checks
+- After frontend changes, run build, lint, and tests.
+- After WASM changes, run build, lint, tests, and `wasm-bindgen-test`.
+- All warnings from these checks must be fixed.
 
 ## 7. Acceptance criteria (Definition of Done)
 
@@ -195,8 +161,7 @@ A release is acceptable when:
 1. Users can complete the end-to-end workflow on desktop and mobile browsers.
 2. The app deploys and runs correctly on GitHub Pages Project Pages under `/<repo-name>`.
 3. The app does **not** register a Service Worker and does **not** ship a Web App Manifest.
-4. Output size safeguards behave per FR-5 (mobile-enforced, desktop-relaxed).
-5. Automated CI runs:
+4. Automated CI runs:
    - Rust unit tests pass,
    - Frontend linting passes,
    - Automated E2E tests pass.

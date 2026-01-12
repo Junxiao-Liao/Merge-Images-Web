@@ -16,18 +16,6 @@ pub enum MergeError {
         message: String,
     },
 
-    /// Output dimensions exceed the allowed pixel limit.
-    TooLarge {
-        /// Computed output width.
-        width: u64,
-        /// Computed output height.
-        height: u64,
-        /// Total output pixels (width * height).
-        pixels: u64,
-        /// Maximum allowed pixels.
-        max: u64,
-    },
-
     /// Internal encoding error.
     EncodeError { message: String },
 }
@@ -49,18 +37,6 @@ impl fmt::Display for MergeError {
                 }
                 Ok(())
             }
-            MergeError::TooLarge {
-                width,
-                height,
-                pixels,
-                max,
-            } => {
-                write!(
-                    f,
-                    "Output too large: {}x{} = {} pixels exceeds limit of {} pixels",
-                    width, height, pixels, max
-                )
-            }
             MergeError::EncodeError { message } => {
                 write!(f, "Failed to encode output: {}", message)
             }
@@ -76,7 +52,6 @@ impl MergeError {
         match self {
             MergeError::NoImages => "NO_IMAGES",
             MergeError::DecodeError { .. } => "DECODE_FAILED",
-            MergeError::TooLarge { .. } => "TOO_LARGE",
             MergeError::EncodeError { .. } => "INTERNAL_ERROR",
         }
     }
@@ -116,20 +91,6 @@ mod tests {
         assert!(err.to_string().contains("index 2"));
         assert!(!err.to_string().contains("file:"));
         assert_eq!(err.code(), "DECODE_FAILED");
-    }
-
-    #[test]
-    fn test_error_display_too_large() {
-        let err = MergeError::TooLarge {
-            width: 10000,
-            height: 20000,
-            pixels: 200_000_000,
-            max: 16_000_000,
-        };
-        assert!(err.to_string().contains("10000x20000"));
-        assert!(err.to_string().contains("200000000"));
-        assert!(err.to_string().contains("16000000"));
-        assert_eq!(err.code(), "TOO_LARGE");
     }
 
     #[test]

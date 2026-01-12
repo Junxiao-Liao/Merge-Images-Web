@@ -1,6 +1,6 @@
 # MergeImages v2 — Technical Architecture (No PWA)
 
-Version: 0.4 (adaptive output-size guardrails; PWA removed)  
+Version: 0.4 (PWA removed)  
 Target hosting: GitHub Pages (Project Pages)  
 Runtime: Modern desktop + mobile browsers
 
@@ -36,7 +36,6 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 - `image` crate (decode/resize/encode)
 - Minimal EXIF parsing (orientation) for formats that carry EXIF (primarily JPEG/TIFF)
 - Deterministic scaling (fixed filters + deterministic rounding)
-- **Fail-fast sizing checks** using a caller-supplied `max_out_pixels` threshold (enables mobile-only enforcement)
 
 ### 2.3 Worker messaging
 - Web Worker for CPU-heavy processing
@@ -57,8 +56,6 @@ The application is a static web app with a thin UI and a compute-heavy engine co
         Preview.svelte        — Result display + download
         ErrorDialog.svelte    — Error modal
       /utils                  — Utility functions
-        deviceClass.ts        — Mobile/desktop detection
-        pixelLimits.ts        — Adaptive max pixel limits
         download.ts           — Download with Safari fallback
         thumbnails.ts         — Object URL management
         workerManager.ts      — WASM worker communication
@@ -84,15 +81,10 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 - Preview rendering (object URL + `<img>`) + download (with Safari fallback)
   - Safari fallback: if `<a download>` does not trigger a save flow (notably on iOS), open the blob URL in a new tab and instruct the user to Save/Share.
 
-**Adaptive output-size guardrails (FR-5)**
-- UI (or Worker) performs device classification (`mobile` vs `desktop`) and determines `max_out_pixels` using the v0.4 mapping.
-- The chosen `max_out_pixels` is passed down to the Worker/WASM layer and echoed in error reporting to produce a useful user message.
-
 ### 4.2 Worker (compute orchestration)
 Responsibilities:
 - Accept input file list + options
 - Read file bytes (`arrayBuffer`)
-- Compute/confirm the effective `max_out_pixels` guardrail
 - Call into WASM engine
 - Post result bytes (and structured errors) back to UI
 
@@ -107,7 +99,6 @@ The engine must be deterministic for a given set of inputs and options.
 Inputs:
 - list of image byte arrays
 - options: direction (`vertical`/`horizontal`), background color
-- `max_out_pixels: u64` (supplied by caller; enables different caps by device/profile)
 
 Outputs:
 - encoded output bytes (PNG by default)
@@ -135,17 +126,7 @@ Outputs:
 - The engine composites each resized image onto the output canvas in order.
 - Transparent pixels are flattened against the configured background fill color (default: white).
 
-### 5.4 Fail-fast limits (caller-supplied threshold)
-Before allocating an output canvas, compute:
-- output width/height
-- total pixels = width * height
-
-If total pixels exceeds `max_out_pixels` (supplied by the caller), return a structured error immediately.
-
-Rationale:
-- Mobile browsers often have substantially tighter memory budgets and may terminate the tab during large allocations.
-
-### 5.5 Error policy
+### 5.4 Error policy
 - v0.4 contract: the entire merge fails if any input required for the merge fails decode/processing.
 - Error payload includes file index/name (if available) to enable a useful UI message.
 
@@ -155,11 +136,6 @@ Rationale:
 `MERGE_REQUEST`:
 - `files: File[]` (ordered)
 - `options: { direction: "vertical"|"horizontal", background: { r,g,b,a } }`
-- `limitsOverride?: { maxOutPixels?: number }` (optional; primarily for deterministic tests)
-
-Notes:
-- In production, the Worker (or UI) computes the effective `maxOutPixels` using FR-5 defaults and runtime hints.
-- In tests, `limitsOverride.maxOutPixels` may be set to a low value to validate TOO_LARGE behavior without huge fixtures.
 
 ### 6.2 Responses
 `MERGE_PROGRESS` (optional):
@@ -171,9 +147,9 @@ Notes:
 - `width`, `height`
 
 `MERGE_ERROR`:
-- `code: "UNSUPPORTED"|"DECODE_FAILED"|"TOO_LARGE"|"INTERNAL_ERROR"|...`
+- `code: "UNSUPPORTED"|"DECODE_FAILED"|"INTERNAL_ERROR"|...`
 - `message: string`
-- `details?: { fileName?: string, fileIndex?: number, width?: number, height?: number, outPixels?: number, maxOutPixels?: number }`
+- `details?: { fileName?: string, fileIndex?: number }`
 
 ## 7. GitHub Pages (Project Pages) deployment details
 
@@ -198,7 +174,6 @@ Notes:
   - EXIF orientation normalization transforms
   - deterministic rounding of resized dimensions
   - output buffer sizing and offset computations
-  - fail-fast checks using a caller-supplied `max_out_pixels`
 
 ### 8.2 WASM boundary tests
 - `wasm-bindgen-test` for:
@@ -208,7 +183,7 @@ Notes:
 ### 8.3 Frontend tests
 - Playwright E2E:
   - import, reorder, merge, preview, download
-  - error scenarios (unsupported/decode fail/too-large)
+  - error scenarios (unsupported/decode fail)
   - deterministic output verification on fixtures (pixel-identical)
 
 ## 9. CI/CD outline (GitHub Actions)
@@ -221,4 +196,4 @@ Notes:
 ## 10. Known limitations (documented behavior)
 - Best-effort EXIF orientation (only when metadata is present/parseable)
 - Animated inputs are treated as “first frame only”
-- Very large merges may exceed memory constraints on some browsers even below the pixel caps (documented as a practical constraint)
+- Very large merges may exceed memory constraints on some browsers

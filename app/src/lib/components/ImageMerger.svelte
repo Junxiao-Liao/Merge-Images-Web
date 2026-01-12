@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import EmptyState from './EmptyState.svelte';
 	import ImageList from './ImageList.svelte';
 	import MergeOptions from './MergeOptions.svelte';
@@ -8,8 +8,6 @@
 	import type { ImageFile, MergeState, Direction, BackgroundColor } from '$lib/types';
 	import { DEFAULT_OPTIONS } from '$lib/workers/types';
 	import { createImageFile, revokeImageFile, revokeAllImageFiles } from '$lib/utils/thumbnails';
-	import { detectDeviceClass } from '$lib/utils/deviceClass';
-	import { computeMaxOutPixels } from '$lib/utils/pixelLimits';
 	import { mergeImages as workerMerge } from '$lib/utils/workerManager';
 
 	// Image state
@@ -22,9 +20,6 @@
 	// Processing state
 	let mergeState = $state<MergeState>({ status: 'idle' });
 
-	// Device classification
-	let maxOutPixels = $state<number | undefined>(undefined);
-
 	// File input ref for "Add More"
 	let addMoreInput: HTMLInputElement | undefined = $state();
 
@@ -33,11 +28,6 @@
 	let isProcessing = $derived(mergeState.status === 'processing');
 	let hasResult = $derived(mergeState.status === 'success');
 	let hasError = $derived(mergeState.status === 'error');
-
-	onMount(() => {
-		const deviceClass = detectDeviceClass();
-		maxOutPixels = computeMaxOutPixels(deviceClass);
-	});
 
 	onDestroy(() => {
 		// Cleanup object URLs
@@ -93,7 +83,7 @@
 		const files = images.map((img) => img.file);
 		const options = { direction, background };
 
-		workerMerge(files, options, maxOutPixels, {
+		workerMerge(files, options, {
 			onSuccess: (result) => {
 				const blob = new Blob([result.bytes], { type: result.mime });
 				const url = URL.createObjectURL(blob);

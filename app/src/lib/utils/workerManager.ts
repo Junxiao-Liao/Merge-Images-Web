@@ -101,7 +101,6 @@ function normalizeOptions(options: MergeOptions): MergeOptions {
 export async function mergeImages(
 	files: File[],
 	options: MergeOptions,
-	maxOutPixels: number | undefined,
 	callbacks: MergeCallbacks
 ): Promise<void> {
 	await waitForReady();
@@ -116,7 +115,6 @@ export async function mergeImages(
 		type: 'MERGE_REQUEST',
 		files: [...files],
 		options: normalizeOptions(options),
-		maxOutPixels,
 		basePath: resolve('/')
 	});
 }
