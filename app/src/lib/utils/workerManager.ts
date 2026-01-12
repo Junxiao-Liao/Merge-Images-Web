@@ -2,6 +2,7 @@
  * Worker manager for WASM merge engine communication.
  */
 
+import { base as appBase } from '$app/paths';
 import type { MergeOptions, MergeResponse, MergeSuccess, MergeError } from '$lib/workers/types';
 
 export type SuccessCallback = (result: MergeSuccess) => void;
@@ -115,7 +116,8 @@ export async function mergeImages(
 		type: 'MERGE_REQUEST',
 		files: [...files],
 		options: normalizeOptions(options),
-		maxOutPixels
+		maxOutPixels,
+		basePath: appBase
 	});
 }
 

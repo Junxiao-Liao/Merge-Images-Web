@@ -25,6 +25,7 @@ export interface MergeRequest {
 	files: File[];
 	options: MergeOptions;
 	maxOutPixels?: number;
+	basePath?: string;
 }
 
 /** Success response from the worker. */

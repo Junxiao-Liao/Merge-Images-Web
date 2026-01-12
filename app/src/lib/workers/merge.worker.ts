@@ -7,16 +7,28 @@
 import type { MergeRequest, MergeSuccess, MergeError } from './types';
 
 const normalizeBase = (base: string): string => (base.endsWith('/') ? base : `${base}/`);
-const workerUrl = new URL(import.meta.url);
-const appRootIndex = workerUrl.pathname.indexOf('/_app/');
-const derivedBase = appRootIndex > 0 ? workerUrl.pathname.slice(0, appRootIndex) : '';
-const envBase = import.meta.env.BASE_URL || '/';
-const BASE_URL = normalizeBase(derivedBase || envBase || '/');
+const deriveBaseFromWorker = (): string => {
+	const path = self.location.pathname;
+	const appRootIndex = path.indexOf('/_app/');
+	if (appRootIndex > 0) {
+		return path.slice(0, appRootIndex);
+	}
+	return '';
+};
+const resolveBase = (basePath?: string): string => {
+	if (basePath && basePath.length > 0) {
+		return normalizeBase(basePath);
+	}
+	const derived = deriveBaseFromWorker();
+	return normalizeBase(derived || '/');
+};
+
+let runtimeBase = resolveBase();
 const resolveStaticUrl = (path: string): string =>
-	new URL(`${BASE_URL}${path}`, workerUrl.origin).toString();
+	new URL(`${runtimeBase}${path}`, self.location.origin).toString();
 
 // Dynamic import path - resolved at runtime relative to app base
-const WASM_PATH = resolveStaticUrl('wasm/merge_images_engine.js');
+const getWasmModuleUrl = (): string => resolveStaticUrl('wasm/merge_images_engine.js');
 
 // WASM module interface
 interface WasmModule {
@@ -45,12 +57,13 @@ let initPromise: Promise<void> | null = null;
 /**
  * Initialize the WASM module (lazy, once).
  */
-async function ensureInitialized(): Promise<void> {
+async function ensureInitialized(basePath?: string): Promise<void> {
 	if (wasmModule) return;
 
 	initPromise ??= (async () => {
+		runtimeBase = resolveBase(basePath);
 		// Import the WASM module
-		const module = (await import(/* @vite-ignore */ WASM_PATH)) as unknown;
+		const module = (await import(/* @vite-ignore */ getWasmModuleUrl())) as unknown;
 
 		if (!isWasmModule(module)) {
 			throw new Error('Invalid WASM module shape');
@@ -106,7 +119,7 @@ self.onmessage = async (event: MessageEvent<MergeRequest>) => {
 
 	try {
 		// Initialize WASM if needed
-		await ensureInitialized();
+		await ensureInitialized(request.basePath);
 
 		if (!wasmModule) {
 			throw new Error('WASM module failed to initialize');
