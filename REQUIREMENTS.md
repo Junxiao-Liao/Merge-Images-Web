@@ -93,8 +93,6 @@ The app **MUST NOT** enforce output pixel caps or fail-fast memory checks. Merge
 - The app **MUST** display a preview of the merged output when the merge succeeds.
 - The app **MUST** navigate to a dedicated full-page preview route upon successful merge.
 - The full-page preview **MUST** enable scrolling for large outputs and provide access to download functionality.
-- The main view **SHOULD** display a summary or link to the result if a merge is already available.
-- The preview **MUST** be rendered using an object URL from the generated output bytes.
 
 ### FR-8: Download
 - The app **MUST** allow downloading the merged output (default filename: `merged.png`).
