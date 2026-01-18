@@ -37,7 +37,7 @@
 	}
 </script>
 
-<div class="card p-4 space-y-4 bg-surface-100 dark:bg-surface-800">
+<div class="card p-4 space-y-4 bg-surface-100 dark:bg-surface-800" data-testid="preview">
 	<div class="flex items-center justify-between">
 		<h3 class="font-medium text-surface-900 dark:text-surface-50">Preview</h3>
 		<div class="text-sm text-surface-500">
@@ -55,8 +55,9 @@
 	<!-- Download button -->
 	<button
 		class="btn preset-filled-primary-500 w-full"
-		onclick={handleDownload}
+		data-testid="download-button"
 		disabled={isDownloading}
+		onclick={handleDownload}
 	>
 		{#if isDownloading}
 			<svg class="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">

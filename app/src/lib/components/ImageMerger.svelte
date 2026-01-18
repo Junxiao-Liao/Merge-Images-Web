@@ -5,10 +5,11 @@
 	import MergeOptions from './MergeOptions.svelte';
 	import Preview from './Preview.svelte';
 	import ErrorDialog from './ErrorDialog.svelte';
-	import type { ImageFile, MergeState, Direction, BackgroundColor } from '$lib/types';
+	import type { ImageFile, MergeState, Direction, BackgroundColor, MergeError } from '$lib/types';
 	import { DEFAULT_OPTIONS } from '$lib/workers/types';
 	import { createImageFile, revokeImageFile, revokeAllImageFiles } from '$lib/utils/thumbnails';
 	import { mergeImages as workerMerge } from '$lib/utils/workerManager';
+	import { ACCEPT_STRING, categorizeFiles } from '$lib/utils/formats';
 
 	// Image state
 	let images = $state<ImageFile[]>([]);
@@ -38,16 +39,34 @@
 	});
 
 	function handleFilesAdded(files: File[]) {
-		// Filter for valid image types
-		const imageFiles = files.filter((f) =>
-			['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(f.type)
-		);
+		const { supported, heicFiles } = categorizeFiles(files);
 
-		if (imageFiles.length === 0) return;
+		// Show error for HEIC files
+		if (heicFiles.length > 0) {
+			const names = heicFiles.map((f) => f.name).join(', ');
+			showFormatError(
+				`HEIC/HEIF format is not supported: ${names}. Please convert to PNG or JPEG first.`
+			);
+		}
+
+		if (supported.length === 0) return;
 
 		// Create ImageFile objects
-		const newImages = imageFiles.map(createImageFile);
+		const newImages = supported.map(createImageFile);
 		images = [...images, ...newImages];
+	}
+
+	function showFormatError(message: string) {
+		const error: MergeError = {
+			type: 'MERGE_ERROR',
+			code: 'UNSUPPORTED_FORMAT',
+			message
+		};
+		mergeState = { status: 'error', error };
+	}
+
+	function handleEmptyStateError(message: string) {
+		showFormatError(message);
 	}
 
 	function handleReorder(newImages: ImageFile[]) {
@@ -122,7 +141,7 @@
 	<!-- Left column: Images + Options -->
 	<div class="space-y-6">
 		{#if images.length === 0}
-			<EmptyState onFilesAdded={handleFilesAdded} />
+			<EmptyState onFilesAdded={handleFilesAdded} onError={handleEmptyStateError} />
 		{:else}
 			<ImageList {images} onRemove={handleRemove} onReorder={handleReorder} />
 
@@ -130,7 +149,7 @@
 			<input
 				bind:this={addMoreInput}
 				class="hidden"
-				accept="image/png,image/jpeg,image/gif,image/webp"
+				accept={ACCEPT_STRING}
 				multiple
 				onchange={handleAddMoreChange}
 				type="file"
@@ -158,6 +177,7 @@
 		<!-- Merge button -->
 		<button
 			class="btn preset-filled-primary-500 w-full text-lg py-3"
+			data-testid="merge-button"
 			disabled={!canMerge || isProcessing}
 			onclick={handleMerge}
 		>

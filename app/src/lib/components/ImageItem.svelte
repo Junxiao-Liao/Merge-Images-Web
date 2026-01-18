@@ -13,7 +13,7 @@
 	let { image, index, total, onMoveUp, onMoveDown, onRemove }: Props = $props();
 </script>
 
-<div class="card p-2 relative group bg-surface-100 dark:bg-surface-800">
+<div class="card p-2 relative group bg-surface-100 dark:bg-surface-800" data-testid="image-item">
 	<img
 		class="w-full aspect-square object-cover rounded"
 		alt={image.name}

@@ -12,7 +12,8 @@
 		const titles: Record<string, string> = {
 			DECODE_FAILED: 'Image Decode Failed',
 			NO_IMAGES: 'No Images',
-			INTERNAL_ERROR: 'Unexpected Error'
+			INTERNAL_ERROR: 'Unexpected Error',
+			UNSUPPORTED_FORMAT: 'Unsupported Format'
 		};
 		return titles[code] || 'Error';
 	}
@@ -42,6 +43,7 @@
 		class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
 		aria-labelledby="error-title"
 		aria-modal="true"
+		data-testid="error-dialog"
 		role="dialog"
 	>
 		<div class="card p-6 bg-surface-50 dark:bg-surface-800 shadow-xl">

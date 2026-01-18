@@ -4,7 +4,8 @@
 - `/engine` — Rust/WASM merge engine
 - `/app` — SvelteKit frontend
   - `/src/lib/components` — UI components (ImageMerger, EmptyState, ImageList, etc.)
-  - `/src/lib/utils` — Utilities (deviceClass, pixelLimits, download, workerManager)
+  - `/src/lib/utils` — Utilities (deviceClass, pixelLimits, download, workerManager, formats)
+  - `/tests` — Playwright E2E tests
   - `/src/lib/workers` — Web Worker for WASM integration
 
 ## Prerequisites
@@ -18,10 +19,11 @@
 ```bash
 cd engine
 cargo check          # Type check
-cargo test           # Run tests
+cargo test           # Run unit tests
 cargo fmt            # Format code
 cargo clippy         # Lint
 wasm-pack build --target web --out-dir ../app/static/wasm  # Build WASM
+wasm-pack test --headless --chrome  # Run WASM boundary tests
 ```
 
 ### App (SvelteKit)
@@ -33,6 +35,8 @@ npm run build        # Production build
 npm run preview      # Preview production build
 npm run check        # Type check
 npm run lint         # Lint and format (fixes)
+npm run test         # Run Playwright E2E tests
+npm run test:ui      # Run Playwright tests with UI
 ```
 
 ### Full local build
@@ -40,6 +44,16 @@ npm run lint         # Lint and format (fixes)
 # From repo root
 cd engine && wasm-pack build --target web --out-dir ../app/static/wasm
 cd ../app && npm run build
+```
+
+### Run all tests
+```bash
+# Engine tests (unit + WASM boundary)
+cd engine && cargo test
+# Note: WASM boundary tests require: wasm-pack test --headless --chrome
+
+# App tests (E2E)
+cd app && npm run test
 ```
 
 ## Current guidance

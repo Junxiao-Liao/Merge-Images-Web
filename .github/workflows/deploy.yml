@@ -61,7 +61,7 @@ jobs:
         working-directory: app
         run: npm run lint
 
-      - name: Svelte test
+      - name: Svelte type check
         working-directory: app
         run: npm run check
 
@@ -71,6 +71,14 @@ jobs:
         env:
           NODE_ENV: production
           BASE_PATH: /Merge-Images-Web
+
+      - name: Install Playwright browsers
+        working-directory: app
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: app
+        run: npm run test -- --project=chromium
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

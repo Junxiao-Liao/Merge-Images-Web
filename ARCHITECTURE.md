@@ -34,6 +34,7 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 ### 2.2 WASM engine (Rust)
 - `wasm-bindgen` + `wasm-bindgen-futures`
 - `image` crate (decode/resize/encode)
+- Supported input formats: PNG, JPEG, GIF, WebP, TIFF
 - Minimal EXIF parsing (orientation) for formats that carry EXIF (primarily JPEG/TIFF)
 - Deterministic scaling (fixed filters + deterministic rounding)
 
@@ -57,6 +58,7 @@ The application is a static web app with a thin UI and a compute-heavy engine co
         ErrorDialog.svelte    — Error modal
       /utils                  — Utility functions
         download.ts           — Download with Safari fallback
+        formats.ts            — Supported format validation + HEIC detection
         thumbnails.ts         — Object URL management
         workerManager.ts      — WASM worker communication
       /workers                — Web Worker
@@ -64,7 +66,11 @@ The application is a static web app with a thin UI and a compute-heavy engine co
         types.ts              — Message protocol types
     /routes                   — SvelteKit routes
   /static/wasm                — WASM artifacts (built)
+  /tests                      — Playwright E2E tests
+    /fixtures                 — Test fixtures (PNG images, etc.)
 /engine                       — Rust crate compiled to WASM
+  /tests                      — WASM boundary tests (wasm-bindgen-test)
+    /fixtures                 — Test fixtures (PNG images)
 /.github/workflows            — CI
 ```
 
@@ -72,7 +78,10 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 
 ### 4.1 UI (main thread)
 - File import (input elements + drag-and-drop)
-- Input validation (reject HEIC/HEIF early; best-effort for other formats)
+- Input validation:
+  - Supported formats: PNG, JPEG, GIF, WebP, TIFF
+  - HEIC/HEIF files are rejected early with a user-friendly error dialog (suggesting conversion)
+  - Non-image files are silently filtered out
 - Thumbnail generation (browser decode permitted here)
 - Reordering UX
 - Option controls:

@@ -18,7 +18,14 @@ const typeCheckedConfigs = [
 
 export default [
 	{
-		ignores: ['**/.svelte-kit/**', '**/build/**', '**/dist/**', '**/static/wasm/**']
+		ignores: [
+			'**/.svelte-kit/**',
+			'**/build/**',
+			'**/dist/**',
+			'**/static/wasm/**',
+			'playwright.config.ts',
+			'tests/**'
+		]
 	},
 	js.configs.recommended,
 	...typeCheckedConfigs,

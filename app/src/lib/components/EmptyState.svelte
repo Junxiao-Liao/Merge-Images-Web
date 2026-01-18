@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { ACCEPT_STRING, categorizeFiles } from '$lib/utils/formats';
+
 	interface Props {
 		onFilesAdded: (addedFiles: File[]) => void;
+		onError?: (message: string) => void;
 	}
 
-	let { onFilesAdded }: Props = $props();
+	let { onFilesAdded, onError }: Props = $props();
 
 	let isDragging = $state(false);
 	let inputRef: HTMLInputElement | undefined = $state();
@@ -11,7 +14,19 @@
 	function handleFileChange(event: Event) {
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
-			onFilesAdded(Array.from(input.files));
+			const { supported, heicFiles } = categorizeFiles(Array.from(input.files));
+
+			// Report HEIC files early rejection
+			if (heicFiles.length > 0) {
+				const names = heicFiles.map((f) => f.name).join(', ');
+				onError?.(
+					`HEIC/HEIF format is not supported: ${names}. Please convert to PNG or JPEG first.`
+				);
+			}
+
+			if (supported.length > 0) {
+				onFilesAdded(supported);
+			}
 			input.value = ''; // Reset for next selection
 		}
 	}
@@ -20,9 +35,18 @@
 		event.preventDefault();
 		isDragging = false;
 		if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
-			const files = Array.from(event.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
-			if (files.length > 0) {
-				onFilesAdded(files);
+			const { supported, heicFiles } = categorizeFiles(Array.from(event.dataTransfer.files));
+
+			// Report HEIC files early rejection
+			if (heicFiles.length > 0) {
+				const names = heicFiles.map((f) => f.name).join(', ');
+				onError?.(
+					`HEIC/HEIF format is not supported: ${names}. Please convert to PNG or JPEG first.`
+				);
+			}
+
+			if (supported.length > 0) {
+				onFilesAdded(supported);
 			}
 		}
 	}
@@ -53,6 +77,7 @@
 	class="border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer {isDragging
 		? 'border-primary-500 bg-primary-500/10'
 		: 'border-surface-300 dark:border-surface-600 hover:border-primary-500'}"
+	data-testid="drop-zone"
 	onclick={handleClick}
 	ondragleave={handleDragLeave}
 	ondragover={handleDragOver}
@@ -64,7 +89,8 @@
 	<input
 		bind:this={inputRef}
 		class="hidden"
-		accept="image/png,image/jpeg,image/gif,image/webp"
+		accept={ACCEPT_STRING}
+		data-testid="file-input"
 		multiple
 		onchange={handleFileChange}
 		type="file"
@@ -83,7 +109,7 @@
 			<p class="text-lg font-medium text-surface-700 dark:text-surface-200">
 				Drop images here or click to select
 			</p>
-			<p class="text-sm text-surface-500 mt-1">PNG, JPG, GIF, WebP supported</p>
+			<p class="text-sm text-surface-500 mt-1">PNG, JPG, GIF, WebP, TIFF supported</p>
 		</div>
 	</div>
 </div>

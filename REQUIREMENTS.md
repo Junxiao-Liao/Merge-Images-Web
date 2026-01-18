@@ -56,7 +56,9 @@ Explicit non-goals for v0.4:
   - file picker (multi-select), and
   - drag-and-drop onto the app.
 - The app **MUST** provide a clear empty state prompting drag-and-drop.
-- The app **SHOULD** support “add more” after initial import.
+- The app **SHOULD** support "add more" after initial import.
+- Supported formats: PNG, JPEG, GIF, WebP, TIFF.
+- The app **MUST** reject HEIC/HEIF files early with a user-friendly error message (suggesting conversion to PNG/JPEG).
 
 ### FR-2: Reorder images
 - The app **MUST** allow users to reorder imported images.
