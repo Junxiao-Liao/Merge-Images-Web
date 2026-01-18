@@ -9,14 +9,14 @@
 	import { mergeImages as workerMerge } from '$lib/utils/workerManager';
 	import { mergerState } from '$lib/mergerState.svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	// File input ref for "Add More"
 	let addMoreInput: HTMLInputElement | undefined = $state();
 
 	onDestroy(() => {
 		// Note: We do NOT revoke URLs here anymore because state is global.
-        // We only revoke when explicitly removing images or resetting.
+		// We only revoke when explicitly removing images or resetting.
 	});
 
 	function handleFilesAdded(files: File[]) {
@@ -30,7 +30,8 @@
 		mergerState.setError(message);
 	}
 
-	function handleReorder(newImages: any[]) { // Using any[] to match whatever ImageList emits, but ideally should be ImageFile[]
+	function handleReorder(newImages: any[]) {
+		// Using any[] to match whatever ImageList emits, but ideally should be ImageFile[]
 		mergerState.reorderImages(newImages);
 	}
 
@@ -46,7 +47,7 @@
 		mergerState.setBackground(bg);
 	}
 
-	function handleMerge() {
+	async function handleMerge() {
 		if (!mergerState.canMerge) return;
 
 		// Set processing state
@@ -56,7 +57,7 @@
 		const options = { direction: mergerState.direction, background: mergerState.background };
 
 		workerMerge(files, options, {
-			onSuccess: (result) => {
+			async onSuccess(result) {
 				const blob = new Blob([result.bytes], { type: result.mime });
 				const url = URL.createObjectURL(blob);
 				mergerState.setMergeState({
@@ -66,9 +67,10 @@
 					width: result.width,
 					height: result.height
 				});
-				
+
 				// Navigate to preview page
-				goto(`${base}/preview`);
+				await goto(resolve('/preview'));
+				return;
 			},
 			onError: (error) => {
 				mergerState.setMergeState({ status: 'error', error });
@@ -166,7 +168,7 @@
 	</div>
 
 	<!-- Right column: Preview (Optional now, maybe show placeholder or mini-preview) -->
-    <!-- The user requested "show 'preview' in a new page". 
+	<!-- The user requested "show 'preview' in a new page". 
          They said "current preview is too small".
          We can either remove the preview from here entirely, or keep a small one.
          Given the request implies REPLACING the small preview workflow with a full page one,
@@ -187,18 +189,27 @@
     -->
 	<div class="lg:sticky lg:top-4 lg:self-start">
 		{#if mergerState.hasResult && mergerState.mergeState.status === 'success'}
-            <!-- Mini preview with link to full page -->
+			<!-- Mini preview with link to full page -->
 			<div class="card p-4 space-y-4 bg-surface-100 dark:bg-surface-800">
-                <h3 class="font-medium">Result Ready</h3>
-                <div class="max-h-[200px] overflow-hidden rounded border border-surface-200 dark:border-surface-700 relative">
-                     <img class="max-w-full h-auto opacity-50" alt="Merged result preview" src={mergerState.mergeState.url} />
-                     <div class="absolute inset-0 flex items-center justify-center">
-                         <button class="btn preset-filled-secondary-500" onclick={() => goto(`${base}/preview`)}>
-                            View Full Result
-                         </button>
-                     </div>
-                </div>
-            </div>
+				<h3 class="font-medium">Result Ready</h3>
+				<div
+					class="max-h-[200px] overflow-hidden rounded border border-surface-200 dark:border-surface-700 relative"
+				>
+					<img
+						class="max-w-full h-auto opacity-50"
+						alt="Merged result preview"
+						src={mergerState.mergeState.url}
+					/>
+					<div class="absolute inset-0 flex items-center justify-center">
+						<button
+							class="btn preset-filled-secondary-500"
+							onclick={async () => await goto(resolve('/preview'))}
+						>
+							View Full Result
+						</button>
+					</div>
+				</div>
+			</div>
 		{:else}
 			<div
 				class="card p-8 bg-surface-100 dark:bg-surface-800 flex items-center justify-center min-h-[300px]"

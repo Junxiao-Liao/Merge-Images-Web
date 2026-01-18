@@ -48,9 +48,9 @@
 
 	<!-- Scrollable preview area -->
 	<div
-		class={fullPage 
-			? "overflow-visible rounded border border-surface-200 dark:border-surface-700"
-			: "max-h-[400px] overflow-auto rounded border border-surface-200 dark:border-surface-700"}
+		class={fullPage
+			? 'overflow-visible rounded border border-surface-200 dark:border-surface-700'
+			: 'max-h-[400px] overflow-auto rounded border border-surface-200 dark:border-surface-700'}
 	>
 		<img class="max-w-full h-auto" alt="Merged result" src={url} />
 	</div>

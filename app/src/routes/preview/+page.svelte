@@ -2,19 +2,19 @@
 	import Preview from '$lib/components/Preview.svelte';
 	import { mergerState } from '$lib/mergerState.svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	import { onMount } from 'svelte';
 
-	onMount(() => {
+	onMount(async () => {
 		// If no result exists, redirect back to home
 		if (mergerState.mergeState.status !== 'success') {
-			goto(`${base}/`);
+			await goto(resolve('/'));
 		}
 	});
 
-	function handleReturn() {
-		goto(`${base}/`);
+	async function handleReturn() {
+		await goto(resolve('/'));
 	}
 </script>
 
@@ -32,7 +32,8 @@
 			Return to Editor
 		</button>
 		<h1 class="h3">Result Preview</h1>
-		<div class="w-[120px]"></div> <!-- Spacer for centering -->
+		<div class="w-[120px]"></div>
+		<!-- Spacer for centering -->
 	</div>
 
 	{#if mergerState.mergeState.status === 'success'}
@@ -58,7 +59,7 @@
 				height={mergerState.mergeState.height}
 				url={mergerState.mergeState.url}
 				width={mergerState.mergeState.width}
-                fullPage={true}
+				fullPage={true}
 			/>
 		</div>
 	{/if}
