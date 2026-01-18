@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
+const fixturesDir = path.join(import.meta.dirname, 'fixtures');
+
 test.describe('Image Import', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
@@ -18,8 +20,8 @@ test.describe('Image Import', () => {
 
 		// Upload test images
 		await fileInput.setInputFiles([
-			path.join(__dirname, 'fixtures/red.png'),
-			path.join(__dirname, 'fixtures/blue.png')
+			path.join(fixturesDir, 'red.png'),
+			path.join(fixturesDir, 'blue.png')
 		]);
 
 		// Verify images appear in the list
@@ -39,8 +41,8 @@ test.describe('Image Import', () => {
 	test('should enable merge button with 2+ images', async ({ page }) => {
 		const fileInput = page.getByTestId('file-input');
 		await fileInput.setInputFiles([
-			path.join(__dirname, 'fixtures/red.png'),
-			path.join(__dirname, 'fixtures/blue.png')
+			path.join(fixturesDir, 'red.png'),
+			path.join(fixturesDir, 'blue.png')
 		]);
 
 		const mergeButton = page.getByTestId('merge-button');
@@ -50,7 +52,7 @@ test.describe('Image Import', () => {
 
 	test('should allow adding more images after initial import', async ({ page }) => {
 		const fileInput = page.getByTestId('file-input');
-		await fileInput.setInputFiles([path.join(__dirname, 'fixtures/red.png')]);
+		await fileInput.setInputFiles([path.join(fixturesDir, 'red.png')]);
 
 		// Wait for image to appear
 		await expect(page.getByTestId('image-item')).toHaveCount(1);
@@ -61,7 +63,7 @@ test.describe('Image Import', () => {
 
 		// Find the hidden input for add more
 		const addMoreInput = page.locator('input[type="file"]').nth(0);
-		await addMoreInput.setInputFiles([path.join(__dirname, 'fixtures/blue.png')]);
+		await addMoreInput.setInputFiles([path.join(fixturesDir, 'blue.png')]);
 
 		// Verify total count
 		await expect(page.getByTestId('image-item')).toHaveCount(2);

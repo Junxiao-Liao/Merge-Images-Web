@@ -60,7 +60,12 @@ fn test_merge_vertical_two_images() {
 
     // Create options object
     let options = Object::new();
-    Reflect::set(&options, &JsValue::from_str("direction"), &JsValue::from_str("vertical")).unwrap();
+    Reflect::set(
+        &options,
+        &JsValue::from_str("direction"),
+        &JsValue::from_str("vertical"),
+    )
+    .unwrap();
 
     let result = merge_images_engine::merge_images(&images, &options.into());
     assert!(result.is_ok());
@@ -95,7 +100,12 @@ fn test_merge_horizontal_two_images() {
 
     // Create options object
     let options = Object::new();
-    Reflect::set(&options, &JsValue::from_str("direction"), &JsValue::from_str("horizontal")).unwrap();
+    Reflect::set(
+        &options,
+        &JsValue::from_str("direction"),
+        &JsValue::from_str("horizontal"),
+    )
+    .unwrap();
 
     let result = merge_images_engine::merge_images(&images, &options.into());
     assert!(result.is_ok());

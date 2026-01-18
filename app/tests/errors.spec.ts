@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
+const fixturesDir = path.join(import.meta.dirname, 'fixtures');
+
 test.describe('Error Handling', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
@@ -10,7 +12,7 @@ test.describe('Error Handling', () => {
 		const fileInput = page.getByTestId('file-input');
 
 		// Try to upload HEIC file
-		await fileInput.setInputFiles([path.join(__dirname, 'fixtures/sample.heic')]);
+		await fileInput.setInputFiles([path.join(fixturesDir, 'sample.heic')]);
 
 		// Error dialog should appear
 		const errorDialog = page.getByTestId('error-dialog');
@@ -24,7 +26,7 @@ test.describe('Error Handling', () => {
 		const fileInput = page.getByTestId('file-input');
 
 		// Trigger error
-		await fileInput.setInputFiles([path.join(__dirname, 'fixtures/sample.heic')]);
+		await fileInput.setInputFiles([path.join(fixturesDir, 'sample.heic')]);
 
 		const errorDialog = page.getByTestId('error-dialog');
 		await expect(errorDialog).toBeVisible();
@@ -41,13 +43,13 @@ test.describe('Error Handling', () => {
 		const fileInput = page.getByTestId('file-input');
 
 		// Trigger error
-		await fileInput.setInputFiles([path.join(__dirname, 'fixtures/sample.heic')]);
+		await fileInput.setInputFiles([path.join(fixturesDir, 'sample.heic')]);
 
 		const errorDialog = page.getByTestId('error-dialog');
 		await expect(errorDialog).toBeVisible();
 
-		// Click backdrop
-		await page.locator('.fixed.inset-0').click();
+		// Click backdrop at a corner (away from the centered dialog)
+		await page.locator('.fixed.inset-0').click({ position: { x: 10, y: 10 } });
 
 		// Dialog should be dismissed
 		await expect(errorDialog).not.toBeVisible();
@@ -58,8 +60,8 @@ test.describe('Error Handling', () => {
 
 		// Upload text file along with valid image
 		await fileInput.setInputFiles([
-			path.join(__dirname, 'fixtures/invalid.txt'),
-			path.join(__dirname, 'fixtures/red.png')
+			path.join(fixturesDir, 'invalid.txt'),
+			path.join(fixturesDir, 'red.png')
 		]);
 
 		// Only the valid image should be added
@@ -78,8 +80,8 @@ test.describe('Error Handling', () => {
 
 		// Upload valid images and verify merge works
 		await fileInput.setInputFiles([
-			path.join(__dirname, 'fixtures/red.png'),
-			path.join(__dirname, 'fixtures/blue.png')
+			path.join(fixturesDir, 'red.png'),
+			path.join(fixturesDir, 'blue.png')
 		]);
 
 		await expect(page.getByTestId('image-item')).toHaveCount(2);

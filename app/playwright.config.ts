@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const basePath = process.env.BASE_PATH || '';
 
 export default defineConfig({
 	testDir: './tests',
@@ -8,7 +13,7 @@ export default defineConfig({
 	workers: process.env.CI ? 1 : undefined,
 	reporter: 'html',
 	use: {
-		baseURL: 'http://localhost:4173',
+		baseURL: `http://localhost:4173${basePath}`,
 		trace: 'on-first-retry'
 	},
 	projects: [
@@ -27,7 +32,7 @@ export default defineConfig({
 	],
 	webServer: {
 		command: 'npm run build && npm run preview',
-		url: 'http://localhost:4173',
+		url: `http://localhost:4173${basePath}`,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120000
 	}

@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
+const fixturesDir = path.join(import.meta.dirname, 'fixtures');
+
 test.describe('Download', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
@@ -8,8 +10,8 @@ test.describe('Download', () => {
 		// Upload test images
 		const fileInput = page.getByTestId('file-input');
 		await fileInput.setInputFiles([
-			path.join(__dirname, 'fixtures/red.png'),
-			path.join(__dirname, 'fixtures/blue.png')
+			path.join(fixturesDir, 'red.png'),
+			path.join(fixturesDir, 'blue.png')
 		]);
 
 		// Wait for images to load and merge

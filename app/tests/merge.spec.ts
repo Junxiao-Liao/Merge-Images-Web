@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
+const fixturesDir = path.join(import.meta.dirname, 'fixtures');
+
 test.describe('Image Merge', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
@@ -8,8 +10,8 @@ test.describe('Image Merge', () => {
 		// Upload test images
 		const fileInput = page.getByTestId('file-input');
 		await fileInput.setInputFiles([
-			path.join(__dirname, 'fixtures/red.png'),
-			path.join(__dirname, 'fixtures/blue.png')
+			path.join(fixturesDir, 'red.png'),
+			path.join(fixturesDir, 'blue.png')
 		]);
 
 		// Wait for all images to load
@@ -30,7 +32,7 @@ test.describe('Image Merge', () => {
 
 	test('should merge images horizontally', async ({ page }) => {
 		// Switch to horizontal
-		const horizontalOption = page.getByLabel('Horizontal');
+		const horizontalOption = page.getByRole('button', { name: 'Horizontal' });
 		await horizontalOption.click();
 
 		const mergeButton = page.getByTestId('merge-button');
@@ -74,7 +76,7 @@ test.describe('Image Merge', () => {
 		await expect(preview).toContainText('10 x 20 pixels');
 
 		// Switch to horizontal
-		const horizontalOption = page.getByLabel('Horizontal');
+		const horizontalOption = page.getByRole('button', { name: 'Horizontal' });
 		await horizontalOption.click();
 
 		// Merge again
