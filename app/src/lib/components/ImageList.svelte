@@ -14,7 +14,24 @@
 	const flipDurationMs = 200;
 
 	function handleDndConsider(e: CustomEvent<{ items: ImageFile[] }>) {
-		images = e.detail.items;
+		// Just update visual state immediately for drag feel, 
+		// but don't persist yet or we conflict with parent prop updates
+		// Actually, standard dndzone pattern in Svelte 5 with runes:
+		// We might need to just call reorder?
+		// But usually we need to update local variable to avoid flicker.
+		// However `images` is a prop. In Svelte 5 we cannot reassign props directly if they are not $bindable.
+		// Since we didn't make `images` bindable in parent, we should likely just rely on parent updates
+		// OR we should have a local state.
+		
+		// For now, let's just emit event. If it causes flicker we can improve.
+		// Actually dndzone requires updating the items array it is watching immediately.
+		// Since `images` is a prop, we can't mutate it.
+		// We should probably rely on the parent (ImageMerger) to handle the temporary state 
+		// or make it bindable.
+		// But ImageMerger is using a global store now.
+		
+		// Let's call onReorder even for consider.
+		onReorder(e.detail.items);
 	}
 
 	function handleDndFinalize(e: CustomEvent<{ items: ImageFile[] }>) {

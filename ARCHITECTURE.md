@@ -54,20 +54,23 @@ The application is a static web app with a thin UI and a compute-heavy engine co
         ImageList.svelte      — Thumbnail grid with drag-drop
         ImageItem.svelte      — Single thumbnail with controls
         MergeOptions.svelte   — Direction + background picker
-        Preview.svelte        — Result display + download
+        Preview.svelte        — Result display + download (used in main and full-page views)
         ErrorDialog.svelte    — Error modal
       /utils                  — Utility functions
         download.ts           — Download with Safari fallback
         formats.ts            — Supported format validation + HEIC detection
         thumbnails.ts         — Object URL management
         workerManager.ts      — WASM worker communication
+      mergerState.svelte.ts   — Global state (Svelte 5 Runes) for images, options, and result
       /workers                — Web Worker
         merge.worker.ts       — WASM engine wrapper
         types.ts              — Message protocol types
     /routes                   — SvelteKit routes
-  /static/wasm                — WASM artifacts (built)
-  /tests                      — Playwright E2E tests
-    /fixtures                 — Test fixtures (PNG images, etc.)
+      +page.svelte            — Home page (ImageMerger)
+      /preview                — Full-page preview route
+    /static/wasm              — WASM artifacts (built)
+    /tests                    — Playwright E2E tests
+      /fixtures               — Test fixtures (PNG images, etc.)
 /engine                       — Rust crate compiled to WASM
   /tests                      — WASM boundary tests (wasm-bindgen-test)
     /fixtures                 — Test fixtures (PNG images)
@@ -77,6 +80,7 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 ## 4. Runtime components and responsibilities
 
 ### 4.1 UI (main thread)
+- Global state management (Svelte 5 Runes) in `mergerState.svelte.ts` to persist session across navigation.
 - File import (input elements + drag-and-drop)
 - Input validation:
   - Supported formats: PNG, JPEG, GIF, WebP, TIFF
@@ -87,7 +91,8 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 - Option controls:
   - direction, background
 - Merge initiation + progress display
-- Preview rendering (object URL + `<img>`) + download (with Safari fallback)
+- Full-page preview rendering (object URL + `<img>`) at `/preview` route
+- Download functionality (with Safari fallback)
   - Safari fallback: if `<a download>` does not trigger a save flow (notably on iOS), open the blob URL in a new tab and instruct the user to Save/Share.
 
 ### 4.2 Worker (compute orchestration)

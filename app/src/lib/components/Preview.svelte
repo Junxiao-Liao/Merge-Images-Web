@@ -6,9 +6,10 @@
 		url: string;
 		width: number;
 		height: number;
+		fullPage?: boolean;
 	}
 
-	let { blob, url, width, height }: Props = $props();
+	let { blob, url, width, height, fullPage = false }: Props = $props();
 
 	let showFallbackMessage = $state(false);
 	let isDownloading = $state(false);
@@ -47,7 +48,9 @@
 
 	<!-- Scrollable preview area -->
 	<div
-		class="max-h-[400px] overflow-auto rounded border border-surface-200 dark:border-surface-700"
+		class={fullPage 
+			? "overflow-visible rounded border border-surface-200 dark:border-surface-700"
+			: "max-h-[400px] overflow-auto rounded border border-surface-200 dark:border-surface-700"}
 	>
 		<img class="max-w-full h-auto" alt="Merged result" src={url} />
 	</div>

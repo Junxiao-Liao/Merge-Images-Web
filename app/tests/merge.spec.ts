@@ -22,7 +22,8 @@ test.describe('Image Merge', () => {
 		const mergeButton = page.getByTestId('merge-button');
 		await mergeButton.click();
 
-		// Wait for preview to appear
+		// Wait for preview to appear (on new page)
+		await expect(page).toHaveURL(/\/preview/);
 		const preview = page.getByTestId('preview');
 		await expect(preview).toBeVisible({ timeout: 30000 });
 
@@ -38,7 +39,8 @@ test.describe('Image Merge', () => {
 		const mergeButton = page.getByTestId('merge-button');
 		await mergeButton.click();
 
-		// Wait for preview to appear
+		// Wait for preview to appear (on new page)
+		await expect(page).toHaveURL(/\/preview/);
 		const preview = page.getByTestId('preview');
 		await expect(preview).toBeVisible({ timeout: 30000 });
 
@@ -52,6 +54,7 @@ test.describe('Image Merge', () => {
 
 		// Check for processing indicator (may be quick)
 		// The button should show "Merging..." or be disabled during processing
+		await expect(page).toHaveURL(/\/preview/);
 		await expect(page.getByTestId('preview')).toBeVisible({ timeout: 30000 });
 	});
 
@@ -59,6 +62,7 @@ test.describe('Image Merge', () => {
 		const mergeButton = page.getByTestId('merge-button');
 		await mergeButton.click();
 
+		await expect(page).toHaveURL(/\/preview/);
 		const preview = page.getByTestId('preview');
 		await expect(preview).toBeVisible({ timeout: 30000 });
 
@@ -71,9 +75,15 @@ test.describe('Image Merge', () => {
 		const mergeButton = page.getByTestId('merge-button');
 		await mergeButton.click();
 
+		// Verify navigation to preview
+		await expect(page).toHaveURL(/\/preview/);
 		const preview = page.getByTestId('preview');
 		await expect(preview).toBeVisible({ timeout: 30000 });
 		await expect(preview).toContainText('10 x 20 pixels');
+
+		// Return to editor
+		await page.getByRole('button', { name: 'Return to Editor' }).click();
+		await expect(page).toHaveURL(/\/$/);
 
 		// Switch to horizontal
 		const horizontalOption = page.getByRole('button', { name: 'Horizontal' });
@@ -82,7 +92,12 @@ test.describe('Image Merge', () => {
 		// Merge again
 		await mergeButton.click();
 
+		// Verify navigation to preview again
+		await expect(page).toHaveURL(/\/preview/);
+
 		// Verify new dimensions
-		await expect(preview).toContainText('20 x 10 pixels');
+		const previewAgain = page.getByTestId('preview');
+		await expect(previewAgain).toBeVisible({ timeout: 30000 });
+		await expect(previewAgain).toContainText('20 x 10 pixels');
 	});
 });

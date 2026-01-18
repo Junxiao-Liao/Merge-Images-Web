@@ -20,17 +20,24 @@ test.describe('Download', () => {
 		const mergeButton = page.getByTestId('merge-button');
 		await mergeButton.click();
 
-		// Wait for preview to appear
+		// Wait for preview to appear (now on new page)
+		await expect(page).toHaveURL(/\/preview/);
 		await expect(page.getByTestId('preview')).toBeVisible({ timeout: 30000 });
 	});
 
 	test('should show download button after merge', async ({ page }) => {
+		// Wait for merge completion
+		await expect(page).toHaveURL(/\/preview/);
+
 		const downloadButton = page.getByTestId('download-button');
 		await expect(downloadButton).toBeVisible();
 		await expect(downloadButton).toContainText('Download merged.png');
 	});
 
 	test('should trigger download on button click', async ({ page }) => {
+		// Wait for merge completion
+		await expect(page).toHaveURL(/\/preview/);
+
 		const downloadButton = page.getByTestId('download-button');
 
 		// Set up download handler
@@ -44,6 +51,9 @@ test.describe('Download', () => {
 	});
 
 	test('should show preview image', async ({ page }) => {
+		// Wait for merge completion
+		await expect(page).toHaveURL(/\/preview/);
+
 		const preview = page.getByTestId('preview');
 		const image = preview.locator('img');
 

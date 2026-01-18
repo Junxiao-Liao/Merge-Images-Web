@@ -5,123 +5,79 @@
 	import MergeOptions from './MergeOptions.svelte';
 	import Preview from './Preview.svelte';
 	import ErrorDialog from './ErrorDialog.svelte';
-	import type { ImageFile, MergeState, Direction, BackgroundColor, MergeError } from '$lib/types';
-	import { DEFAULT_OPTIONS } from '$lib/workers/types';
-	import { createImageFile, revokeImageFile, revokeAllImageFiles } from '$lib/utils/thumbnails';
+	import { ACCEPT_STRING } from '$lib/utils/formats';
 	import { mergeImages as workerMerge } from '$lib/utils/workerManager';
-	import { ACCEPT_STRING, categorizeFiles } from '$lib/utils/formats';
-
-	// Image state
-	let images = $state<ImageFile[]>([]);
-
-	// Merge options
-	let direction = $state<Direction>(DEFAULT_OPTIONS.direction);
-	let background = $state<BackgroundColor>(DEFAULT_OPTIONS.background);
-
-	// Processing state
-	let mergeState = $state<MergeState>({ status: 'idle' });
+	import { mergerState } from '$lib/mergerState.svelte';
+	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 
 	// File input ref for "Add More"
 	let addMoreInput: HTMLInputElement | undefined = $state();
 
-	// Derived state
-	let canMerge = $derived(images.length >= 2 && mergeState.status !== 'processing');
-	let isProcessing = $derived(mergeState.status === 'processing');
-	let hasResult = $derived(mergeState.status === 'success');
-	let hasError = $derived(mergeState.status === 'error');
-
 	onDestroy(() => {
-		// Cleanup object URLs
-		revokeAllImageFiles(images);
-		if (mergeState.status === 'success') {
-			URL.revokeObjectURL(mergeState.url);
-		}
+		// Note: We do NOT revoke URLs here anymore because state is global.
+        // We only revoke when explicitly removing images or resetting.
 	});
 
 	function handleFilesAdded(files: File[]) {
-		const { supported, heicFiles } = categorizeFiles(files);
-
-		// Show error for HEIC files
-		if (heicFiles.length > 0) {
-			const names = heicFiles.map((f) => f.name).join(', ');
-			showFormatError(
-				`HEIC/HEIF format is not supported: ${names}. Please convert to PNG or JPEG first.`
-			);
+		const { error } = mergerState.addFiles(files);
+		if (error) {
+			mergerState.setError(error);
 		}
-
-		if (supported.length === 0) return;
-
-		// Create ImageFile objects
-		const newImages = supported.map(createImageFile);
-		images = [...images, ...newImages];
-	}
-
-	function showFormatError(message: string) {
-		const error: MergeError = {
-			type: 'MERGE_ERROR',
-			code: 'UNSUPPORTED_FORMAT',
-			message
-		};
-		mergeState = { status: 'error', error };
 	}
 
 	function handleEmptyStateError(message: string) {
-		showFormatError(message);
+		mergerState.setError(message);
 	}
 
-	function handleReorder(newImages: ImageFile[]) {
-		images = newImages;
+	function handleReorder(newImages: any[]) { // Using any[] to match whatever ImageList emits, but ideally should be ImageFile[]
+		mergerState.reorderImages(newImages);
 	}
 
 	function handleRemove(id: string) {
-		const image = images.find((img) => img.id === id);
-		if (image) {
-			revokeImageFile(image);
-		}
-		images = images.filter((img) => img.id !== id);
+		mergerState.removeImage(id);
 	}
 
-	function handleDirectionChange(d: Direction) {
-		direction = d;
+	function handleDirectionChange(d: any) {
+		mergerState.setDirection(d);
 	}
 
-	function handleBackgroundChange(bg: BackgroundColor) {
-		background = bg;
+	function handleBackgroundChange(bg: any) {
+		mergerState.setBackground(bg);
 	}
 
 	function handleMerge() {
-		if (!canMerge) return;
+		if (!mergerState.canMerge) return;
 
-		// Clear previous result
-		if (mergeState.status === 'success') {
-			URL.revokeObjectURL(mergeState.url);
-		}
+		// Set processing state
+		mergerState.setMergeState({ status: 'processing', stage: 'Starting...', percent: 0 });
 
-		mergeState = { status: 'processing', stage: 'Starting...', percent: 0 };
-
-		const files = images.map((img) => img.file);
-		const options = { direction, background };
+		const files = mergerState.images.map((img) => img.file);
+		const options = { direction: mergerState.direction, background: mergerState.background };
 
 		workerMerge(files, options, {
 			onSuccess: (result) => {
 				const blob = new Blob([result.bytes], { type: result.mime });
 				const url = URL.createObjectURL(blob);
-				mergeState = {
+				mergerState.setMergeState({
 					status: 'success',
 					blob,
 					url,
 					width: result.width,
 					height: result.height
-				};
+				});
+				
+				// Navigate to preview page
+				goto(`${base}/preview`);
 			},
 			onError: (error) => {
-				mergeState = { status: 'error', error };
+				mergerState.setMergeState({ status: 'error', error });
 			}
 		});
 	}
 
 	function handleErrorDismiss() {
-		mergeState = { status: 'idle' };
+		mergerState.setMergeState({ status: 'idle' });
 	}
 
 	function handleAddMoreChange(event: Event) {
@@ -140,10 +96,10 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 	<!-- Left column: Images + Options -->
 	<div class="space-y-6">
-		{#if images.length === 0}
+		{#if mergerState.images.length === 0}
 			<EmptyState onFilesAdded={handleFilesAdded} onError={handleEmptyStateError} />
 		{:else}
-			<ImageList {images} onRemove={handleRemove} onReorder={handleReorder} />
+			<ImageList images={mergerState.images} onRemove={handleRemove} onReorder={handleReorder} />
 
 			<!-- Add more button -->
 			<input
@@ -168,8 +124,8 @@
 		{/if}
 
 		<MergeOptions
-			{background}
-			{direction}
+			background={mergerState.background}
+			direction={mergerState.direction}
 			onBackgroundChange={handleBackgroundChange}
 			onDirectionChange={handleDirectionChange}
 		/>
@@ -178,10 +134,10 @@
 		<button
 			class="btn preset-filled-primary-500 w-full text-lg py-3"
 			data-testid="merge-button"
-			disabled={!canMerge || isProcessing}
+			disabled={!mergerState.canMerge || mergerState.isProcessing}
 			onclick={handleMerge}
 		>
-			{#if isProcessing}
+			{#if mergerState.isProcessing}
 				<svg class="animate-spin -ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24">
 					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
 					></circle>
@@ -192,14 +148,14 @@
 					></path>
 				</svg>
 				Merging...
-			{:else if images.length < 2}
+			{:else if mergerState.images.length < 2}
 				Add at least 2 images
 			{:else}
-				Merge {images.length} Images
+				Merge {mergerState.images.length} Images
 			{/if}
 		</button>
 
-		{#if isProcessing}
+		{#if mergerState.isProcessing}
 			<div class="space-y-2">
 				<div class="h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
 					<div style:width="100%" class="h-full bg-primary-500 rounded-full animate-pulse"></div>
@@ -209,15 +165,40 @@
 		{/if}
 	</div>
 
-	<!-- Right column: Preview -->
+	<!-- Right column: Preview (Optional now, maybe show placeholder or mini-preview) -->
+    <!-- The user requested "show 'preview' in a new page". 
+         They said "current preview is too small".
+         We can either remove the preview from here entirely, or keep a small one.
+         Given the request implies REPLACING the small preview workflow with a full page one,
+         OR just providing a full page option. 
+         However, the prompt says "show 'preview' in a new page... notice current preview is too small".
+         It strongly suggests moving the preview experience to a new page.
+         
+         If we remove it here, the right column becomes empty or we need to redesign.
+         Let's keep the right column as a "Quick Preview" or just remove it if we auto-navigate.
+         
+         Wait, I auto-navigated in handleMerge: `goto(\`${base}/preview\`);`
+         So once merged, they go to the new page. 
+         But what if they return? 
+         When they return, they might want to see the result without merging again.
+         
+         If `mergerState.hasResult` is true, we could show a "View Result" button or a small preview.
+         Let's keep a small preview here but maybe simplified, or just a "View Full Result" card.
+    -->
 	<div class="lg:sticky lg:top-4 lg:self-start">
-		{#if hasResult && mergeState.status === 'success'}
-			<Preview
-				blob={mergeState.blob}
-				height={mergeState.height}
-				url={mergeState.url}
-				width={mergeState.width}
-			/>
+		{#if mergerState.hasResult && mergerState.mergeState.status === 'success'}
+            <!-- Mini preview with link to full page -->
+			<div class="card p-4 space-y-4 bg-surface-100 dark:bg-surface-800">
+                <h3 class="font-medium">Result Ready</h3>
+                <div class="max-h-[200px] overflow-hidden rounded border border-surface-200 dark:border-surface-700 relative">
+                     <img class="max-w-full h-auto opacity-50" alt="Merged result preview" src={mergerState.mergeState.url} />
+                     <div class="absolute inset-0 flex items-center justify-center">
+                         <button class="btn preset-filled-secondary-500" onclick={() => goto(`${base}/preview`)}>
+                            View Full Result
+                         </button>
+                     </div>
+                </div>
+            </div>
 		{:else}
 			<div
 				class="card p-8 bg-surface-100 dark:bg-surface-800 flex items-center justify-center min-h-[300px]"
@@ -244,6 +225,6 @@
 </div>
 
 <!-- Error dialog -->
-{#if hasError && mergeState.status === 'error'}
-	<ErrorDialog error={mergeState.error} onDismiss={handleErrorDismiss} />
+{#if mergerState.hasError && mergerState.mergeState.status === 'error'}
+	<ErrorDialog error={mergerState.mergeState.error} onDismiss={handleErrorDismiss} />
 {/if}

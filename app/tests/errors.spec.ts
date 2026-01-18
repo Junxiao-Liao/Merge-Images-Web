@@ -89,7 +89,8 @@ test.describe('Error Handling', () => {
 		const mergeButton = page.getByTestId('merge-button');
 		await mergeButton.click();
 
-		// Should succeed without error
+		// Should succeed without error (and redirect to preview)
+		await expect(page).toHaveURL(/\/preview/);
 		await expect(page.getByTestId('preview')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('error-dialog')).not.toBeVisible();
 	});

@@ -7,6 +7,8 @@
   - `/src/lib/utils` — Utilities (deviceClass, pixelLimits, download, workerManager, formats)
   - `/tests` — Playwright E2E tests
   - `/src/lib/workers` — Web Worker for WASM integration
+  - `/src/lib/mergerState.svelte.ts` — Global state management using Svelte 5 Runes
+  - `/src/routes/preview` — Dedicated full-page preview route
 
 ## Prerequisites
 - Rust toolchain (`rustup`)
