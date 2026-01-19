@@ -11,12 +11,14 @@ export interface BackgroundColor {
 }
 
 /** Merge direction. */
-export type Direction = 'vertical' | 'horizontal';
+export type Direction = 'vertical' | 'horizontal' | 'smart';
 
 /** Merge options. */
 export interface MergeOptions {
 	direction: Direction;
 	background: BackgroundColor;
+	/** Overlap detection sensitivity for smart mode (0-100). */
+	overlapSensitivity: number;
 }
 
 /** Request message sent to the worker. */
@@ -63,5 +65,6 @@ export type WorkerMessage = MergeRequest | MergeResponse;
 /** Default merge options. */
 export const DEFAULT_OPTIONS: MergeOptions = {
 	direction: 'vertical',
-	background: { r: 255, g: 255, b: 255, a: 255 }
+	background: { r: 255, g: 255, b: 255, a: 255 },
+	overlapSensitivity: 35
 };

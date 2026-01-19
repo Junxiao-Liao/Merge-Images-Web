@@ -4,6 +4,7 @@ use std::io::Cursor;
 use crate::dimension::{compute_output_size, compute_scaled_dimensions, compute_target_dimension};
 use crate::error::MergeError;
 use crate::exif::{extract_orientation, normalize_orientation};
+use crate::overlap::compute_overlaps;
 use crate::scale::scale_image;
 use crate::types::{BackgroundColor, Direction, MergeOptions};
 
@@ -70,7 +71,12 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
         .collect();
 
     // Step 5: Compute output size
-    let (output_width, output_height) = compute_output_size(&scaled_dimensions, options.direction);
+    // For Smart mode, we treat it as Vertical for dimension calculation initially
+    let direction_for_sizing = match options.direction {
+        Direction::Smart => Direction::Vertical,
+        d => d,
+    };
+    let (output_width, output_height) = compute_output_size(&scaled_dimensions, direction_for_sizing);
 
     if output_width > u32::MAX as u64 || output_height > u32::MAX as u64 {
         return Err(MergeError::EncodeError {
@@ -79,7 +85,7 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
     }
 
     let output_width = output_width as u32;
-    let output_height = output_height as u32;
+    let mut output_height = output_height as u32;
 
     // Step 7: Scale all images
     let scaled_images: Vec<DynamicImage> = decoded_images
@@ -87,6 +93,16 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
         .zip(scaled_dimensions.iter())
         .map(|(img, (w, h))| scale_image(img, *w, *h))
         .collect();
+
+    // Step 7.5: For Smart mode, compute overlaps and adjust output height
+    let overlaps = if options.direction == Direction::Smart {
+        let overlaps = compute_overlaps(&scaled_images, options.overlap_sensitivity);
+        let total_overlap: u32 = overlaps.iter().sum();
+        output_height = output_height.saturating_sub(total_overlap);
+        overlaps
+    } else {
+        vec![]
+    };
 
     // Step 8: Create output canvas with background color
     let mut output = RgbaImage::from_pixel(
@@ -102,7 +118,7 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
 
     // Step 9: Composite images onto canvas
     let mut offset: u32 = 0;
-    for (img, (w, h)) in scaled_images.iter().zip(scaled_dimensions.iter()) {
+    for (i, (img, (w, h))) in scaled_images.iter().zip(scaled_dimensions.iter()).enumerate() {
         let rgba_img = img.to_rgba8();
 
         match options.direction {
@@ -129,6 +145,38 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
                     &options.background,
                 );
                 offset += w;
+            }
+            Direction::Smart => {
+                // Smart mode: vertical stacking with overlap removal
+                let x_offset = (output_width - w) / 2;
+
+                if i == 0 {
+                    // First image: composite fully
+                    composite_image(
+                        &mut output,
+                        &rgba_img,
+                        x_offset,
+                        offset,
+                        &options.background,
+                    );
+                    // Subtract overlap from next image (if exists)
+                    let overlap = overlaps.get(i).copied().unwrap_or(0);
+                    offset += h.saturating_sub(overlap);
+                } else {
+                    // Subsequent images: skip the overlapping top portion
+                    let prev_overlap = overlaps.get(i - 1).copied().unwrap_or(0);
+                    composite_image_with_crop(
+                        &mut output,
+                        &rgba_img,
+                        x_offset,
+                        offset,
+                        prev_overlap, // crop this many pixels from top
+                        &options.background,
+                    );
+                    // For the next image
+                    let next_overlap = overlaps.get(i).copied().unwrap_or(0);
+                    offset += h.saturating_sub(prev_overlap).saturating_sub(next_overlap);
+                }
             }
         }
     }
@@ -157,6 +205,32 @@ fn composite_image(
     for (x, y, pixel) in src.enumerate_pixels() {
         let dest_x = x_offset + x;
         let dest_y = y_offset + y;
+
+        if dest_x < dest.width() && dest_y < dest.height() {
+            let blended = blend_with_background(*pixel, background);
+            dest.put_pixel(dest_x, dest_y, blended);
+        }
+    }
+}
+
+/// Composites a source image onto a destination canvas, cropping the top portion.
+/// Used for Smart merge mode to remove overlapping content.
+fn composite_image_with_crop(
+    dest: &mut RgbaImage,
+    src: &RgbaImage,
+    x_offset: u32,
+    y_offset: u32,
+    crop_top: u32,
+    background: &BackgroundColor,
+) {
+    for (x, y, pixel) in src.enumerate_pixels() {
+        // Skip the cropped top portion
+        if y < crop_top {
+            continue;
+        }
+
+        let dest_x = x_offset + x;
+        let dest_y = y_offset + (y - crop_top);
 
         if dest_x < dest.width() && dest_y < dest.height() {
             let blended = blend_with_background(*pixel, background);

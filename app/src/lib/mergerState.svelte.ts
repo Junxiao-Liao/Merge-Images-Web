@@ -14,6 +14,7 @@ class MergerStateStore {
 	images = $state<ImageFile[]>([]);
 	direction = $state<Direction>(DEFAULT_OPTIONS.direction);
 	background = $state<BackgroundColor>(DEFAULT_OPTIONS.background);
+	overlapSensitivity = $state<number>(DEFAULT_OPTIONS.overlapSensitivity);
 	mergeState = $state<MergeState>({ status: 'idle' });
 
 	// Derived
@@ -58,6 +59,10 @@ class MergerStateStore {
 
 	setBackground(bg: BackgroundColor) {
 		this.background = bg;
+	}
+
+	setOverlapSensitivity(value: number) {
+		this.overlapSensitivity = Math.max(0, Math.min(100, value));
 	}
 
 	setMergeState(state: MergeState) {

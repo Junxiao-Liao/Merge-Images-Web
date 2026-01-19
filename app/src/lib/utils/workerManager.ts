@@ -91,7 +91,8 @@ function normalizeOptions(options: MergeOptions): MergeOptions {
 			g: options.background.g,
 			b: options.background.b,
 			a: options.background.a
-		}
+		},
+		overlapSensitivity: options.overlapSensitivity
 	};
 }
 

@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 /// Merge direction - vertical stacks images top to bottom, horizontal stacks left to right.
+/// Smart mode is vertical with automatic overlap detection and removal.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Direction {
     #[default]
     Vertical,
     Horizontal,
+    Smart,
 }
 
 /// Background fill color for transparent areas.
@@ -59,12 +61,28 @@ impl BackgroundColor {
 }
 
 /// Options for the merge operation.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergeOptions {
     #[serde(default)]
     pub direction: Direction,
     #[serde(default)]
     pub background: BackgroundColor,
+    #[serde(default = "default_overlap_sensitivity")]
+    pub overlap_sensitivity: u8,
+}
+
+impl Default for MergeOptions {
+    fn default() -> Self {
+        MergeOptions {
+            direction: Direction::default(),
+            background: BackgroundColor::default(),
+            overlap_sensitivity: default_overlap_sensitivity(),
+        }
+    }
+}
+
+fn default_overlap_sensitivity() -> u8 {
+    35
 }
 
 #[cfg(test)]
@@ -99,5 +117,6 @@ mod tests {
     fn test_options_default() {
         let opts = MergeOptions::default();
         assert_eq!(opts.direction, Direction::Vertical);
+        assert_eq!(opts.overlap_sensitivity, default_overlap_sensitivity());
     }
 }

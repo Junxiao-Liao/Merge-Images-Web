@@ -54,18 +54,18 @@ test.describe('Image Import', () => {
 		const fileInput = page.getByTestId('file-input');
 		await fileInput.setInputFiles([path.join(fixturesDir, 'red.png')]);
 
-		// Wait for image to appear
-		await expect(page.getByTestId('image-item')).toHaveCount(1);
+		// Wait for image to appear with explicit timeout
+		await expect(page.getByTestId('image-item')).toHaveCount(1, { timeout: 10000 });
 
-		// Add more via the "Add More" button
+		// Wait for the "Add More" button to be visible and stable
 		const addMoreButton = page.getByRole('button', { name: 'Add More Images' });
-		await expect(addMoreButton).toBeVisible();
+		await expect(addMoreButton).toBeVisible({ timeout: 10000 });
 
-		// Find the hidden input for add more
-		const addMoreInput = page.locator('input[type="file"]').nth(0);
+		// Find the hidden input for add more (it's the first file input after EmptyState is replaced)
+		const addMoreInput = page.locator('input[type="file"]').first();
 		await addMoreInput.setInputFiles([path.join(fixturesDir, 'blue.png')]);
 
 		// Verify total count
-		await expect(page.getByTestId('image-item')).toHaveCount(2);
+		await expect(page.getByTestId('image-item')).toHaveCount(2, { timeout: 10000 });
 	});
 });

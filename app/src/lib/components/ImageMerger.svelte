@@ -46,6 +46,10 @@
 		mergerState.setBackground(bg);
 	}
 
+	function handleOverlapSensitivityChange(value: number) {
+		mergerState.setOverlapSensitivity(Math.max(0, Math.min(100, value)));
+	}
+
 	async function handleMerge() {
 		if (!mergerState.canMerge) return;
 
@@ -53,7 +57,11 @@
 		mergerState.setMergeState({ status: 'processing', stage: 'Starting...', percent: 0 });
 
 		const files = mergerState.images.map((img) => img.file);
-		const options = { direction: mergerState.direction, background: mergerState.background };
+		const options = {
+			direction: mergerState.direction,
+			background: mergerState.background,
+			overlapSensitivity: mergerState.overlapSensitivity
+		};
 
 		workerMerge(files, options, {
 			async onSuccess(result) {
@@ -126,8 +134,10 @@
 		<MergeOptions
 			background={mergerState.background}
 			direction={mergerState.direction}
+			overlapSensitivity={mergerState.overlapSensitivity}
 			onBackgroundChange={handleBackgroundChange}
 			onDirectionChange={handleDirectionChange}
+			onOverlapSensitivityChange={handleOverlapSensitivityChange}
 		/>
 
 		<!-- Merge button -->

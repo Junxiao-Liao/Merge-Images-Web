@@ -10,7 +10,8 @@ export default defineConfig({
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
-	workers: process.env.CI ? 1 : undefined,
+	// Limit workers to prevent resource contention with test server
+	workers: process.env.CI ? 1 : 4,
 	reporter: 'html',
 	use: {
 		baseURL: `http://localhost:4173${basePath}`,

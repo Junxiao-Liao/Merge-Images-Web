@@ -23,7 +23,7 @@ Explicit non-goals for v0.4:
 1. User opens the app in a browser.
 2. User adds images (drag-and-drop or file picker).
 3. User reorders images.
-4. User selects direction (vertical/horizontal) and background.
+4. User selects direction (vertical/horizontal/smart) and background.
 5. User runs merge.
 6. User previews the output and downloads it.
 
@@ -32,7 +32,7 @@ Explicit non-goals for v0.4:
 ### 3.1 In scope (v0.4)
 - Import multiple images
 - Reorder inputs
-- Merge direction: vertical or horizontal
+- Merge direction: vertical, horizontal, or smart (with overlap detection)
 - Background fill for transparent inputs
 - Deterministic merge behavior (see NFR/Testing)
 - Output encoding (PNG; optional JPEG if included)
@@ -68,9 +68,11 @@ Explicit non-goals for v0.4:
 
 ### FR-3: Options (direction + background)
 - The app **MUST** let users choose:
-  - merge direction: `vertical` or `horizontal`,
+  - merge direction: `vertical`, `horizontal`, or `smart`,
   - background fill color used when flattening alpha (default: white).
 - The app **MAY** offer additional background presets (e.g., black, transparent) as long as semantics remain consistent.
+- **Smart mode** automatically detects and removes overlapping content between consecutive images (useful for stitching scrolling screenshots).
+  - Smart mode includes a configurable overlap detection sensitivity slider (0-100) to trade off false positives (conservative) vs missed overlaps (aggressive).
 
 ### FR-4: Merge semantics and scaling rule
 The merge engine must:
@@ -79,8 +81,17 @@ The merge engine must:
 - compute target dimensions such that:
   - in vertical mode: **all inputs are scaled to the maximum width** across inputs,
   - in horizontal mode: **all inputs are scaled to the maximum height** across inputs,
+  - in smart mode: same scaling as vertical, plus overlap detection and removal,
   - upscaling is expected when needed,
 - concatenate scaled images in the selected order.
+
+**Smart mode overlap detection:**
+- Uses template matching (NCC) to find overlapping regions between consecutive images.
+- Extracts a fixed-height strip near the top of each image as the template, auto-growing if needed for reliability.
+- Searches across the full height of the previous image to support any overlap amount.
+- Uses an overlap sensitivity value (0-100) to tune the match threshold and ambiguity gap between best/second-best matches.
+- Crops overlapping content from subsequent images to produce seamless stitching.
+- Falls back to simple vertical concatenation if overlap detection fails (no user error shown).
 
 ### FR-5: Output size safeguards
 The app **MUST NOT** enforce output pixel caps or fail-fast memory checks. Merges should proceed without pre-check size limits.
@@ -135,7 +146,7 @@ The app **MUST NOT** enforce output pixel caps or fail-fast memory checks. Merge
 - Playwright E2E coverage for:
   - importing images,
   - reordering,
-  - merging vertically and horizontally,
+  - merging vertically, horizontally, and in smart mode,
   - downloading output,
   - error states (unsupported input / failed decode),
   - deterministic output properties for small fixture images:
@@ -147,7 +158,8 @@ The app **MUST NOT** enforce output pixel caps or fail-fast memory checks. Merge
   - scaling target computation,
   - EXIF orientation normalization mapping,
   - deterministic dimension rounding,
-  - merge buffer offset computation.
+  - merge buffer offset computation,
+  - smart mode overlap detection logic.
 
 ### TR-3: WASM boundary tests (recommended)
 - Include a small set of `wasm-bindgen-test` tests to validate the JS↔WASM contract and a basic end-to-end merge in a browser runtime.

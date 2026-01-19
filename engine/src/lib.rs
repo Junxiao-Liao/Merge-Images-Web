@@ -2,6 +2,7 @@ mod dimension;
 mod error;
 mod exif;
 mod merge;
+mod overlap;
 mod scale;
 mod types;
 
@@ -22,8 +23,9 @@ pub fn greet() -> String {
 /// # Arguments
 /// * `images_data` - JS Array of Uint8Array, each containing raw image bytes
 /// * `options` - JS Object with merge options:
-///   - `direction`: "vertical" | "horizontal"
+///   - `direction`: "vertical" | "horizontal" | "smart"
 ///   - `background`: { r, g, b, a } (0-255 each)
+///   - `overlapSensitivity`: 0-100 (smart mode only)
 ///
 /// # Returns
 /// * On success: Uint8Array containing PNG-encoded output
@@ -94,6 +96,7 @@ fn parse_options(options: &JsValue) -> Result<MergeOptions, JsValue> {
     {
         merge_options.direction = match dir_str.as_str() {
             "horizontal" => Direction::Horizontal,
+            "smart" => Direction::Smart,
             _ => Direction::Vertical,
         };
     }
@@ -108,6 +111,18 @@ fn parse_options(options: &JsValue) -> Result<MergeOptions, JsValue> {
         let b = get_u8_field(&bg_val, "b").unwrap_or(255);
         let a = get_u8_field(&bg_val, "a").unwrap_or(255);
         merge_options.background = BackgroundColor::new(r, g, b, a);
+    }
+
+    if let Ok(sensitivity_val) = Reflect::get(options, &JsValue::from_str("overlapSensitivity"))
+        && !sensitivity_val.is_undefined()
+        && !sensitivity_val.is_null()
+    {
+        if let Some(sensitivity) = sensitivity_val.as_f64()
+            .filter(|value| value.is_finite())
+            .map(|value| value.round() as i64)
+        {
+            merge_options.overlap_sensitivity = sensitivity.clamp(0, 100) as u8;
+        }
     }
 
     Ok(merge_options)

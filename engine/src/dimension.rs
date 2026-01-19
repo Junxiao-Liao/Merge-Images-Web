@@ -10,7 +10,9 @@ pub fn compute_target_dimension(dimensions: &[(u32, u32)], direction: Direction)
     }
 
     match direction {
-        Direction::Vertical => dimensions.iter().map(|(w, _)| *w).max().unwrap_or(0),
+        Direction::Vertical | Direction::Smart => {
+            dimensions.iter().map(|(w, _)| *w).max().unwrap_or(0)
+        }
         Direction::Horizontal => dimensions.iter().map(|(_, h)| *h).max().unwrap_or(0),
     }
 }
@@ -32,7 +34,7 @@ pub fn compute_scaled_dimensions(
     }
 
     match direction {
-        Direction::Vertical => {
+        Direction::Vertical | Direction::Smart => {
             // Scale to target width
             let scale = target as f64 / width as f64;
             let new_height = round_half_up(height as f64 * scale);
@@ -62,7 +64,7 @@ pub fn compute_output_size(scaled_dimensions: &[(u32, u32)], direction: Directio
     }
 
     match direction {
-        Direction::Vertical => {
+        Direction::Vertical | Direction::Smart => {
             let width = scaled_dimensions
                 .iter()
                 .map(|(w, _)| *w as u64)

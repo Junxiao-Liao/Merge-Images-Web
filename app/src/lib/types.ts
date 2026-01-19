@@ -2,7 +2,7 @@
  * Frontend type definitions.
  */
 
-import type { BackgroundColor, Direction, MergeError } from './workers/types';
+import type { BackgroundColor, Direction, MergeError, MergeOptions } from './workers/types';
 
 /** Represents an image loaded into the UI. */
 export interface ImageFile {
@@ -20,4 +20,4 @@ export type MergeState =
 	| { status: 'error'; error: MergeError };
 
 /** Re-export worker types for convenience. */
-export type { BackgroundColor, Direction, MergeError };
+export type { BackgroundColor, Direction, MergeError, MergeOptions };

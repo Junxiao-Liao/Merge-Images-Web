@@ -4,11 +4,20 @@
 	interface Props {
 		direction: Direction;
 		background: BackgroundColor;
+		overlapSensitivity: number;
 		onDirectionChange: (direction: Direction) => void;
 		onBackgroundChange: (background: BackgroundColor) => void;
+		onOverlapSensitivityChange: (value: number) => void;
 	}
 
-	let { direction, background, onDirectionChange, onBackgroundChange }: Props = $props();
+	let {
+		direction,
+		background,
+		overlapSensitivity,
+		onDirectionChange,
+		onBackgroundChange,
+		onOverlapSensitivityChange
+	}: Props = $props();
 
 	const backgroundPresets: { label: string; color: BackgroundColor }[] = [
 		{ label: 'White', color: { r: 255, g: 255, b: 255, a: 255 } },
@@ -23,6 +32,14 @@
 			preset.b === background.b &&
 			preset.a === background.a
 		);
+	}
+
+	function handleOverlapInput(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const value = Number.parseInt(input.value, 10);
+		if (!Number.isNaN(value)) {
+			onOverlapSensitivityChange(value);
+		}
 	}
 </script>
 
@@ -67,8 +84,54 @@
 				</svg>
 				Horizontal
 			</button>
+			<button
+				class="flex-1 btn {direction === 'smart'
+					? 'preset-filled-primary-500'
+					: 'preset-tonal-surface'}"
+				aria-pressed={direction === 'smart'}
+				onclick={() => onDirectionChange('smart')}
+				title="Auto-detect and remove overlapping content"
+			>
+				<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+					/>
+				</svg>
+				Smart
+			</button>
 		</div>
 	</div>
+
+	{#if direction === 'smart'}
+		<div class="space-y-2">
+			<div class="flex items-center justify-between">
+				<span class="text-sm text-surface-600 dark:text-surface-400">Overlap detection</span>
+				<span class="text-xs text-surface-500">{overlapSensitivity}%</span>
+			</div>
+			<div class="space-y-2">
+				<input
+					class="w-full accent-primary-500"
+					min="0"
+					max="100"
+					step="1"
+					type="range"
+					value={overlapSensitivity}
+					oninput={handleOverlapInput}
+					aria-label="Overlap detection sensitivity"
+				/>
+				<div class="flex justify-between text-xs text-surface-500">
+					<span>Conservative</span>
+					<span>Aggressive</span>
+				</div>
+			</div>
+			<p class="text-xs text-surface-500">
+				Higher sensitivity removes more overlap but may crop incorrectly.
+			</p>
+		</div>
+	{/if}
 
 	<!-- Background color presets -->
 	<div class="space-y-2">

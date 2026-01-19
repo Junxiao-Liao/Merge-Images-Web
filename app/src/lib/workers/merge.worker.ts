@@ -129,7 +129,8 @@ self.onmessage = async (event: MessageEvent<MergeRequest>) => {
 		// Build options object for WASM
 		const wasmOptions: Record<string, unknown> = {
 			direction: request.options.direction,
-			background: request.options.background
+			background: request.options.background,
+			overlapSensitivity: request.options.overlapSensitivity
 		};
 
 		// Call WASM merge function

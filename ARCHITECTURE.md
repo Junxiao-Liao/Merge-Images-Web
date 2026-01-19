@@ -34,6 +34,7 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 ### 2.2 WASM engine (Rust)
 - `wasm-bindgen` + `wasm-bindgen-futures`
 - `image` crate (decode/resize/encode)
+- `imageproc` crate (template matching for smart overlap detection)
 - Supported input formats: PNG, JPEG, GIF, WebP, TIFF
 - Minimal EXIF parsing (orientation) for formats that carry EXIF (primarily JPEG/TIFF)
 - Deterministic scaling (fixed filters + deterministic rounding)
@@ -72,6 +73,15 @@ The application is a static web app with a thin UI and a compute-heavy engine co
     /tests                    — Playwright E2E tests
       /fixtures               — Test fixtures (PNG images, etc.)
 /engine                       — Rust crate compiled to WASM
+  /src
+    lib.rs                    — WASM bindings and entry point
+    merge.rs                  — Core merge logic
+    overlap.rs                — Smart merge overlap detection (template matching)
+    dimension.rs              — Dimension calculations
+    scale.rs                  — Image scaling
+    exif.rs                   — EXIF orientation handling
+    types.rs                  — Shared types (Direction, MergeOptions, etc.)
+    error.rs                  — Error types
   /tests                      — WASM boundary tests (wasm-bindgen-test)
     /fixtures                 — Test fixtures (PNG images)
 /.github/workflows            — CI
@@ -89,7 +99,7 @@ The application is a static web app with a thin UI and a compute-heavy engine co
 - Thumbnail generation (browser decode permitted here)
 - Reordering UX
 - Option controls:
-  - direction, background
+  - direction (vertical, horizontal, smart), background
 - Merge initiation + progress display
 - Full-page preview rendering (object URL + `<img>`) at `/preview` route
 - Download functionality (with Safari fallback)
@@ -112,7 +122,7 @@ The engine must be deterministic for a given set of inputs and options.
 
 Inputs:
 - list of image byte arrays
-- options: direction (`vertical`/`horizontal`), background color
+- options: direction (`vertical`/`horizontal`/`smart`), background color
 
 Outputs:
 - encoded output bytes (PNG by default)
@@ -133,8 +143,21 @@ Outputs:
 - Horizontal merge:
   - Target height = maximum height among normalized inputs.
   - Each image is resized to that target height, preserving aspect ratio with deterministic rounding.
+- Smart merge:
+  - Uses vertical scaling rules (same as above).
+  - Additionally detects and removes overlapping content between consecutive images.
 - Upscaling is allowed/expected.
 - Resampling filters are fixed to ensure deterministic results.
+
+### 5.2.1 Smart merge overlap detection
+Smart mode uses template matching with Normalized Cross-Correlation (NCC) to detect overlapping regions:
+- Extracts a fixed-height strip near the top of image N+1 as the template (auto-growing if the match is weak or ambiguous).
+- Searches across most of image N (skipping only a small top slice and the last few pixels to avoid headers/edge noise).
+- Crops a small horizontal margin from both regions to reduce scroll bar/edge artifacts.
+- Converts regions to grayscale for matching.
+- Uses an overlap sensitivity value (0-100) to tune the match threshold and ambiguity gap.
+- When overlap is detected, the overlapping portion is removed from subsequent images.
+- Falls back to simple vertical concatenation when no overlap is detected for a pair.
 
 ### 5.3 Composition and background
 - The engine composites each resized image onto the output canvas in order.
@@ -149,7 +172,7 @@ Outputs:
 ### 6.1 Requests
 `MERGE_REQUEST`:
 - `files: File[]` (ordered)
-- `options: { direction: "vertical"|"horizontal", background: { r,g,b,a } }`
+- `options: { direction: "vertical"|"horizontal"|"smart", background: { r,g,b,a }, overlapSensitivity?: number }`
 
 ### 6.2 Responses
 `MERGE_PROGRESS` (optional):
@@ -209,5 +232,10 @@ Outputs:
 
 ## 10. Known limitations (documented behavior)
 - Best-effort EXIF orientation (only when metadata is present/parseable)
-- Animated inputs are treated as “first frame only”
+- Animated inputs are treated as "first frame only"
 - Very large merges may exceed memory constraints on some browsers
+- Smart merge overlap detection:
+  - Requires images to have similar widths (within 10% tolerance)
+  - Works best with scrolling screenshots from the same source
+  - May not detect overlap if content differs significantly (e.g., dynamic ads, timestamps)
+  - Falls back to simple concatenation when detection fails (no error shown)
