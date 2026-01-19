@@ -4,7 +4,7 @@
 //! overlapping regions between consecutive screenshots.
 
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
-use imageproc::template_matching::{find_extremes, match_template, MatchTemplateMethod};
+use imageproc::template_matching::{MatchTemplateMethod, find_extremes, match_template};
 
 /// Minimum match score threshold for overlap detection (conservative end).
 const MATCH_THRESHOLD_CONSERVATIVE: f32 = 0.86;
@@ -62,8 +62,16 @@ impl OverlapConfig {
     fn from_sensitivity(sensitivity: u8) -> Self {
         let clamped = sensitivity.min(100) as f32 / 100.0;
         Self {
-            match_threshold: lerp(MATCH_THRESHOLD_CONSERVATIVE, MATCH_THRESHOLD_AGGRESSIVE, clamped),
-            ambiguity_gap: lerp(AMBIGUITY_GAP_CONSERVATIVE, AMBIGUITY_GAP_AGGRESSIVE, clamped),
+            match_threshold: lerp(
+                MATCH_THRESHOLD_CONSERVATIVE,
+                MATCH_THRESHOLD_AGGRESSIVE,
+                clamped,
+            ),
+            ambiguity_gap: lerp(
+                AMBIGUITY_GAP_CONSERVATIVE,
+                AMBIGUITY_GAP_AGGRESSIVE,
+                clamped,
+            ),
             min_template_variance: lerp(
                 MIN_TEMPLATE_VARIANCE_CONSERVATIVE,
                 MIN_TEMPLATE_VARIANCE_AGGRESSIVE,

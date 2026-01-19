@@ -116,13 +116,12 @@ fn parse_options(options: &JsValue) -> Result<MergeOptions, JsValue> {
     if let Ok(sensitivity_val) = Reflect::get(options, &JsValue::from_str("overlapSensitivity"))
         && !sensitivity_val.is_undefined()
         && !sensitivity_val.is_null()
-    {
-        if let Some(sensitivity) = sensitivity_val.as_f64()
+        && let Some(sensitivity) = sensitivity_val
+            .as_f64()
             .filter(|value| value.is_finite())
             .map(|value| value.round() as i64)
-        {
-            merge_options.overlap_sensitivity = sensitivity.clamp(0, 100) as u8;
-        }
+    {
+        merge_options.overlap_sensitivity = sensitivity.clamp(0, 100) as u8;
     }
 
     Ok(merge_options)

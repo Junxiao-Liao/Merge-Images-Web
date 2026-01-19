@@ -76,7 +76,8 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
         Direction::Smart => Direction::Vertical,
         d => d,
     };
-    let (output_width, output_height) = compute_output_size(&scaled_dimensions, direction_for_sizing);
+    let (output_width, output_height) =
+        compute_output_size(&scaled_dimensions, direction_for_sizing);
 
     if output_width > u32::MAX as u64 || output_height > u32::MAX as u64 {
         return Err(MergeError::EncodeError {
@@ -118,7 +119,11 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
 
     // Step 9: Composite images onto canvas
     let mut offset: u32 = 0;
-    for (i, (img, (w, h))) in scaled_images.iter().zip(scaled_dimensions.iter()).enumerate() {
+    for (i, (img, (w, h))) in scaled_images
+        .iter()
+        .zip(scaled_dimensions.iter())
+        .enumerate()
+    {
         let rgba_img = img.to_rgba8();
 
         match options.direction {
