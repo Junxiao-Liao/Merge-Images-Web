@@ -19,22 +19,17 @@
 </script>
 
 <div class="container mx-auto p-4 max-w-4xl space-y-6">
-	<div class="flex items-center justify-between">
-		<button class="btn preset-tonal-primary" onclick={handleReturn}>
-			<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M10 19l-7-7m0 0l7-7m-7 7h18"
-				/>
-			</svg>
-			Return to Editor
-		</button>
-		<h1 class="h3">Result Preview</h1>
-		<div class="w-[120px]"></div>
-		<!-- Spacer for centering -->
-	</div>
+	<button class="btn preset-tonal-primary" onclick={handleReturn}>
+		<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				stroke-width="2"
+				d="M10 19l-7-7m0 0l7-7m-7 7h18"
+			/>
+		</svg>
+		Return to Editor
+	</button>
 
 	{#if mergerState.mergeState.status === 'success'}
 		<div class="card p-4 space-y-4 bg-surface-100 dark:bg-surface-800">

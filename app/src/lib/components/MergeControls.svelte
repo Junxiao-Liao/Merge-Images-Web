@@ -8,9 +8,9 @@
 	let { canMerge, isProcessing, imageCount }: Props = $props();
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4 max-w-sm mx-auto">
 	<button
-		class="btn preset-filled-primary-500 w-full text-lg py-3"
+		class="btn preset-filled-primary-500 w-full text-base sm:text-lg py-2 sm:py-3"
 		disabled={!canMerge || isProcessing}
 	>
 		{#if isProcessing}
