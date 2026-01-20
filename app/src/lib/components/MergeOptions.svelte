@@ -43,7 +43,7 @@
 	}
 </script>
 
-<div class="card p-4 space-y-4 bg-surface-100 dark:bg-surface-800">
+<div class="card p-4 space-y-4">
 	<h3 class="font-medium text-surface-900 dark:text-surface-50">Merge Options</h3>
 
 	<!-- Direction toggle -->
