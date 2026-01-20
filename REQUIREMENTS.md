@@ -86,9 +86,13 @@ The merge engine must:
 - concatenate scaled images in the selected order.
 
 **Smart mode overlap detection:**
+- Runs a chrome-strip pre-pass to reduce false matches on repeated headers/footers:
+  - Detects near-identical top/bottom row runs between adjacent images on downscaled grayscale proxies.
+  - Trims the repeated chrome from the current image's top and the previous image's bottom.
 - Uses template matching (NCC) to find overlapping regions between consecutive images.
 - Extracts a fixed-height strip near the top of each image as the template, auto-growing if needed for reliability.
-- Searches across the full height of the previous image to support any overlap amount.
+- Template selection starts below any trimmed top chrome; search excludes any trimmed bottom chrome.
+- Searches across the full height of the previous image (minus trimmed bottom) to support any overlap amount.
 - Uses an overlap sensitivity value (0-100) to tune the match threshold and ambiguity gap between best/second-best matches.
 - Crops overlapping content from subsequent images to produce seamless stitching.
 - Falls back to simple vertical concatenation if overlap detection fails (no user error shown).
@@ -167,7 +171,8 @@ The app **MUST NOT** enforce output pixel caps or fail-fast memory checks. Merge
 ### TR-4: Post-modification checks
 - After frontend changes, run build, lint, and tests.
 - After WASM changes, run build, lint, tests, and `wasm-bindgen-test`.
-- All warnings from these checks must be fixed.
+- All warnings from these checks must be fixed (CI treats warnings as errors where supported, e.g. Rust `cargo clippy -- -D warnings` and ESLint `--max-warnings 0`).
+- Rust linting must include tests/examples/benches where applicable (use `cargo clippy --all-targets -- -D warnings`).
 
 ## 7. Acceptance criteria (Definition of Done)
 

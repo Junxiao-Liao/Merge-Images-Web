@@ -23,7 +23,8 @@ cd engine
 cargo check          # Type check
 cargo test           # Run unit tests
 cargo fmt            # Format code
-cargo clippy         # Lint
+cargo fmt --check    # Enforce formatting
+cargo clippy --all-targets -- -D warnings  # Lint (no warnings allowed)
 wasm-pack build --target web --out-dir ../app/static/wasm  # Build WASM
 wasm-pack test --headless --chrome  # Run WASM boundary tests
 ```
@@ -62,6 +63,9 @@ cd app && npm run test
 - Read `ARCHITECTURE.md` for intended architecture (SvelteKit UI + Rust/WASM engine, no PWA).
 - Read `REQUIREMENTS.md` for functional and testing requirements.
 - Do not add Service Workers or a Web App Manifest.
+- Keep builds warning-free:
+  - Rust: `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`
+  - App: `npm run lint` (configured with `--max-warnings 0`)
 - **Project management must use CLI commands** (`cargo`, `npm`, `wasm-pack`, etc.) rather than manually editing `Cargo.toml`, `package.json`, or other config files.
 
 Keep this file updated as the project grows.

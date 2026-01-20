@@ -76,6 +76,7 @@ The application is a static web app with a thin UI and a compute-heavy engine co
   /src
     lib.rs                    — WASM bindings and entry point
     merge.rs                  — Core merge logic
+    chrome_strip.rs           — Smart merge chrome-strip pre-pass (headers/footers)
     overlap.rs                — Smart merge overlap detection (template matching)
     dimension.rs              — Dimension calculations
     scale.rs                  — Image scaling
@@ -150,14 +151,19 @@ Outputs:
 - Resampling filters are fixed to ensure deterministic results.
 
 ### 5.2.1 Smart merge overlap detection
-Smart mode uses template matching with Normalized Cross-Correlation (NCC) to detect overlapping regions:
-- Extracts a fixed-height strip near the top of image N+1 as the template (auto-growing if the match is weak or ambiguous).
-- Searches across most of image N (skipping only a small top slice and the last few pixels to avoid headers/edge noise).
-- Crops a small horizontal margin from both regions to reduce scroll bar/edge artifacts.
-- Converts regions to grayscale for matching.
-- Uses an overlap sensitivity value (0-100) to tune the match threshold and ambiguity gap.
-- When overlap is detected, the overlapping portion is removed from subsequent images.
-- Falls back to simple vertical concatenation when no overlap is detected for a pair.
+Smart mode uses a small chrome-strip pre-pass + template matching with Normalized Cross-Correlation (NCC) to detect overlapping regions:
+- Chrome-strip pass (pre-pass):
+  - For each adjacent pair, downscale to grayscale proxies and detect how many top/bottom rows are near-identical.
+  - Trim the repeated chrome from the current image's top and the previous image's bottom, so only the first top and last bottom survive.
+- NCC overlap detection (content-focused):
+  - Extracts a fixed-height strip near the top of image N+1 as the template (auto-growing if the match is weak or ambiguous).
+  - Template selection starts below the trimmed top region; search excludes the trimmed bottom region.
+  - Searches across most of image N.
+  - Crops a small horizontal margin from both regions to reduce scroll bar/edge artifacts.
+  - Converts regions to grayscale for matching.
+  - Uses an overlap sensitivity value (0-100) to tune the match threshold and ambiguity gap.
+  - When overlap is detected, the overlapping portion is removed from subsequent images.
+  - Falls back to simple vertical concatenation when no overlap is detected for a pair.
 
 ### 5.3 Composition and background
 - The engine composites each resized image onto the output canvas in order.

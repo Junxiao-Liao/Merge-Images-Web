@@ -110,10 +110,28 @@ pub struct OverlapResult {
 /// # Returns
 /// * `Some(OverlapResult)` - If overlap detected with sufficient confidence
 /// * `None` - If no overlap detected or images are incompatible
+#[allow(dead_code)]
 pub fn detect_overlap(
     img_top: &DynamicImage,
     img_bottom: &DynamicImage,
     sensitivity: u8,
+) -> Option<OverlapResult> {
+    detect_overlap_with_trims(img_top, img_bottom, sensitivity, 0, 0)
+}
+
+/// Detects vertical overlap between two images, while excluding known chrome.
+///
+/// `top_trim_bottom` is the number of pixels that will be trimmed from the
+/// bottom of `img_top`.
+///
+/// `bottom_trim_top` is the number of pixels that will be trimmed from the
+/// top of `img_bottom`.
+pub fn detect_overlap_with_trims(
+    img_top: &DynamicImage,
+    img_bottom: &DynamicImage,
+    sensitivity: u8,
+    top_trim_bottom: u32,
+    bottom_trim_top: u32,
 ) -> Option<OverlapResult> {
     let (top_w, top_h) = (img_top.width(), img_top.height());
     let (bottom_w, bottom_h) = (img_bottom.width(), img_bottom.height());
@@ -134,10 +152,13 @@ pub fn detect_overlap(
         return None;
     }
 
+    // Exclude known bottom chrome from search.
+    let top_effective_end_y = top_h.saturating_sub(top_trim_bottom);
+
     // Search region in the top image (almost full height).
     let search_start_y = ((top_h as f32) * SEARCH_START_PERCENT) as u32;
     let search_end_y = ((top_h as f32) * SEARCH_END_PERCENT) as u32;
-    let search_end_y = search_end_y.min(top_h);
+    let search_end_y = search_end_y.min(top_effective_end_y);
 
     if search_end_y <= search_start_y {
         return None;
@@ -158,9 +179,20 @@ pub fn detect_overlap(
 
     let config = OverlapConfig::from_sensitivity(sensitivity);
 
+    // Exclude known top chrome from the template source image.
+    if bottom_trim_top >= bottom_h {
+        return None;
+    }
+    let bottom_effective_height = bottom_h.saturating_sub(bottom_trim_top);
+    if bottom_effective_height < MIN_TEMPLATE_HEIGHT {
+        return None;
+    }
+
     let template_start_candidates = [TEMPLATE_START_PERCENT, TEMPLATE_START_FALLBACK_PERCENT];
     for template_start_percent in template_start_candidates {
-        let template_start_y = ((bottom_h as f32) * template_start_percent) as u32;
+        let template_start_y = bottom_trim_top
+            .saturating_add(((bottom_effective_height as f32) * template_start_percent) as u32)
+            .min(bottom_h);
         let available_template_height = bottom_h.saturating_sub(template_start_y);
         if available_template_height < MIN_TEMPLATE_HEIGHT {
             continue;
@@ -203,8 +235,8 @@ pub fn detect_overlap(
                 &search_region,
                 &template,
                 search_start_y,
-                top_h,
-                bottom_h,
+                top_effective_end_y,
+                bottom_effective_height,
                 &config,
             ) {
                 return Some(result);
@@ -314,8 +346,8 @@ fn perform_matching(
     search_region: &GrayImage,
     template: &GrayImage,
     search_start_y: u32,
-    top_height: u32,
-    bottom_height: u32,
+    top_effective_end_y: u32,
+    bottom_effective_height: u32,
     config: &OverlapConfig,
 ) -> Option<OverlapResult> {
     // Perform template matching using NCC.
@@ -344,10 +376,10 @@ fn perform_matching(
     // - search region starts at search_start_y
     // - The overlap is from the match position to the bottom of img_top
     let match_y_in_original = search_start_y.saturating_add(best_pos.1 as u32);
-    let overlap_pixels = top_height.saturating_sub(match_y_in_original);
+    let overlap_pixels = top_effective_end_y.saturating_sub(match_y_in_original);
 
     // Sanity check: overlap should be reasonable.
-    if overlap_pixels < MIN_OVERLAP_PIXELS || overlap_pixels > bottom_height {
+    if overlap_pixels < MIN_OVERLAP_PIXELS || overlap_pixels > bottom_effective_height {
         return None;
     }
 
@@ -390,6 +422,7 @@ fn lerp(start: f32, end: f32, t: f32) -> f32 {
 /// between image `i` and image `i+1`. The vector has length `images.len() - 1`.
 ///
 /// When overlap detection fails for a pair, returns 0 for that pair (simple concatenation).
+#[allow(dead_code)]
 pub fn compute_overlaps(images: &[DynamicImage], sensitivity: u8) -> Vec<u32> {
     if images.len() < 2 {
         return vec![];
@@ -401,6 +434,42 @@ pub fn compute_overlaps(images: &[DynamicImage], sensitivity: u8) -> Vec<u32> {
             detect_overlap(&pair[0], &pair[1], sensitivity)
                 .map(|r| r.overlap_pixels)
                 .unwrap_or(0)
+        })
+        .collect()
+}
+
+/// Computes overlaps for a sequence of images, while excluding per-image chrome trims.
+///
+/// `trims` must have the same length as `images`. For overlap between i and i+1,
+/// this excludes `trims[i].bottom` from the top image and `trims[i+1].top` from
+/// the bottom image.
+pub fn compute_overlaps_with_trims(
+    images: &[DynamicImage],
+    trims: &[crate::chrome_strip::ChromeTrim],
+    sensitivity: u8,
+) -> Vec<u32> {
+    if images.len() < 2 {
+        return vec![];
+    }
+    if images.len() != trims.len() {
+        return vec![0; images.len().saturating_sub(1)];
+    }
+
+    images
+        .windows(2)
+        .enumerate()
+        .map(|(i, pair)| {
+            let top_trim_bottom = trims[i].bottom;
+            let bottom_trim_top = trims[i + 1].top;
+            detect_overlap_with_trims(
+                &pair[0],
+                &pair[1],
+                sensitivity,
+                top_trim_bottom,
+                bottom_trim_top,
+            )
+            .map(|r| r.overlap_pixels)
+            .unwrap_or(0)
         })
         .collect()
 }
@@ -425,6 +494,64 @@ mod tests {
             }
         }
         DynamicImage::ImageRgba8(img)
+    }
+
+    fn create_chrome_overlap_pair(
+        width: u32,
+        chrome_h: u32,
+        content_h: u32,
+        overlap: u32,
+    ) -> (DynamicImage, DynamicImage) {
+        // Two screenshots with repeated chrome, and overlapping content.
+        //
+        // Image layout: [top chrome][content window][bottom chrome]
+        //
+        // Top content window is global rows 0..content_h
+        // Bottom content window is global rows (content_h - overlap)..(2*content_h - overlap)
+        let global_start_bottom = content_h.saturating_sub(overlap);
+        let global_h = global_start_bottom + content_h;
+
+        let mut global = RgbaImage::new(width, global_h);
+        for y in 0..global_h {
+            for x in 0..width {
+                // Deterministic "busy" texture with good mixing.
+                let mut z = (x as u64).wrapping_mul(0x9E3779B97F4A7C15)
+                    ^ (y as u64).wrapping_mul(0xBF58476D1CE4E5B9);
+                z ^= z >> 30;
+                z = z.wrapping_mul(0xBF58476D1CE4E5B9);
+                z ^= z >> 27;
+                z = z.wrapping_mul(0x94D049BB133111EB);
+                z ^= z >> 31;
+                let mut g = (z >> 56) as u8;
+
+                // Unique marker band near the overlap start (global y ~ 200).
+                if y >= global_start_bottom + 10 && y < global_start_bottom + 18 && x < 80 {
+                    g = (x as u8).wrapping_mul(3) ^ 0xA5;
+                }
+
+                global.put_pixel(x, y, Rgba([g, g, g, 255]));
+            }
+        }
+
+        let full_h = chrome_h + content_h + chrome_h;
+        let chrome_px = Rgba([20, 20, 20, 255]);
+        let mut top = RgbaImage::from_pixel(width, full_h, chrome_px);
+        let mut bottom = RgbaImage::from_pixel(width, full_h, chrome_px);
+
+        // Copy content windows.
+        for y in 0..content_h {
+            for x in 0..width {
+                let p_top = global.get_pixel(x, y);
+                top.put_pixel(x, chrome_h + y, *p_top);
+                let p_bottom = global.get_pixel(x, global_start_bottom + y);
+                bottom.put_pixel(x, chrome_h + y, *p_bottom);
+            }
+        }
+
+        (
+            DynamicImage::ImageRgba8(top),
+            DynamicImage::ImageRgba8(bottom),
+        )
     }
 
     #[test]
@@ -480,5 +607,15 @@ mod tests {
             assert!(r.confidence >= config.match_threshold);
             assert!(r.overlap_pixels > 0);
         }
+    }
+
+    #[test]
+    fn test_overlap_with_trims_ignores_chrome() {
+        let (top, bottom) = create_chrome_overlap_pair(220, 20, 300, 100);
+        let result = detect_overlap_with_trims(&top, &bottom, TEST_SENSITIVITY, 20, 20);
+        assert!(result.is_some(), "expected overlap to be detected");
+        let overlap = result.unwrap().overlap_pixels;
+        // Allow small tolerance due to template height/selection.
+        assert!(overlap.abs_diff(100) <= 3, "overlap={}", overlap);
     }
 }

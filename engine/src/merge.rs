@@ -1,10 +1,11 @@
 use image::{DynamicImage, ImageReader, Rgba, RgbaImage};
 use std::io::Cursor;
 
+use crate::chrome_strip::compute_chrome_trims;
 use crate::dimension::{compute_output_size, compute_scaled_dimensions, compute_target_dimension};
 use crate::error::MergeError;
 use crate::exif::{extract_orientation, normalize_orientation};
-use crate::overlap::compute_overlaps;
+use crate::overlap::compute_overlaps_with_trims;
 use crate::scale::scale_image;
 use crate::types::{BackgroundColor, Direction, MergeOptions};
 
@@ -95,14 +96,24 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
         .map(|(img, (w, h))| scale_image(img, *w, *h))
         .collect();
 
-    // Step 7.5: For Smart mode, compute overlaps and adjust output height
-    let overlaps = if options.direction == Direction::Smart {
-        let overlaps = compute_overlaps(&scaled_images, options.overlap_sensitivity);
+    // Step 7.5: For Smart mode, trim repeated chrome and compute overlaps.
+    let (chrome_trims, overlaps) = if options.direction == Direction::Smart {
+        let trims = compute_chrome_trims(&scaled_images);
+        let overlaps =
+            compute_overlaps_with_trims(&scaled_images, &trims, options.overlap_sensitivity);
+
+        let total_trim_top: u32 = trims.iter().map(|t| t.top).sum();
+        let total_trim_bottom: u32 = trims.iter().map(|t| t.bottom).sum();
         let total_overlap: u32 = overlaps.iter().sum();
-        output_height = output_height.saturating_sub(total_overlap);
-        overlaps
+
+        output_height = output_height
+            .saturating_sub(total_trim_top)
+            .saturating_sub(total_trim_bottom)
+            .saturating_sub(total_overlap);
+
+        (trims, overlaps)
     } else {
-        vec![]
+        (vec![], vec![])
     };
 
     // Step 8: Create output canvas with background color
@@ -152,36 +163,30 @@ pub fn merge(images_data: Vec<Vec<u8>>, options: MergeOptions) -> Result<Vec<u8>
                 offset += w;
             }
             Direction::Smart => {
-                // Smart mode: vertical stacking with overlap removal
+                // Smart mode: vertical stacking with chrome-strip + overlap removal
                 let x_offset = (output_width - w) / 2;
 
-                if i == 0 {
-                    // First image: composite fully
-                    composite_image(
-                        &mut output,
-                        &rgba_img,
-                        x_offset,
-                        offset,
-                        &options.background,
-                    );
-                    // Subtract overlap from next image (if exists)
-                    let overlap = overlaps.get(i).copied().unwrap_or(0);
-                    offset += h.saturating_sub(overlap);
+                let trim = chrome_trims.get(i).copied().unwrap_or_default();
+                let overlap_from_prev = if i > 0 {
+                    overlaps.get(i - 1).copied().unwrap_or(0)
                 } else {
-                    // Subsequent images: skip the overlapping top portion
-                    let prev_overlap = overlaps.get(i - 1).copied().unwrap_or(0);
-                    composite_image_with_crop(
-                        &mut output,
-                        &rgba_img,
-                        x_offset,
-                        offset,
-                        prev_overlap, // crop this many pixels from top
-                        &options.background,
-                    );
-                    // For the next image
-                    let next_overlap = overlaps.get(i).copied().unwrap_or(0);
-                    offset += h.saturating_sub(prev_overlap).saturating_sub(next_overlap);
-                }
+                    0
+                };
+                let crop_top = trim.top.saturating_add(overlap_from_prev);
+                let crop_bottom = trim.bottom;
+
+                composite_image_with_vertical_crop(
+                    &mut output,
+                    &rgba_img,
+                    x_offset,
+                    offset,
+                    crop_top,
+                    crop_bottom,
+                    &options.background,
+                );
+
+                let rendered_h = h.saturating_sub(crop_top).saturating_sub(crop_bottom);
+                offset += rendered_h;
             }
         }
     }
@@ -218,25 +223,33 @@ fn composite_image(
     }
 }
 
-/// Composites a source image onto a destination canvas, cropping the top portion.
-/// Used for Smart merge mode to remove overlapping content.
-fn composite_image_with_crop(
+/// Composites a source image onto a destination canvas, cropping the top and bottom portions.
+/// Used for Smart merge mode to remove chrome and overlapping content.
+fn composite_image_with_vertical_crop(
     dest: &mut RgbaImage,
     src: &RgbaImage,
     x_offset: u32,
     y_offset: u32,
     crop_top: u32,
+    crop_bottom: u32,
     background: &BackgroundColor,
 ) {
+    let src_h = src.height();
+    if src_h == 0 {
+        return;
+    }
+
+    let crop_top = crop_top.min(src_h);
+    let crop_bottom = crop_bottom.min(src_h.saturating_sub(crop_top));
+    let end_y_exclusive = src_h.saturating_sub(crop_bottom);
+
     for (x, y, pixel) in src.enumerate_pixels() {
-        // Skip the cropped top portion
-        if y < crop_top {
+        if y < crop_top || y >= end_y_exclusive {
             continue;
         }
 
         let dest_x = x_offset + x;
         let dest_y = y_offset + (y - crop_top);
-
         if dest_x < dest.width() && dest_y < dest.height() {
             let blended = blend_with_background(*pixel, background);
             dest.put_pixel(dest_x, dest_y, blended);
@@ -284,6 +297,44 @@ mod tests {
         bytes
     }
 
+    fn create_smart_fixture_png(
+        width: u32,
+        chrome_h: u32,
+        content_h: u32,
+        global_start: u32,
+    ) -> Vec<u8> {
+        let full_h = chrome_h + content_h + chrome_h;
+        let mut img = RgbaImage::from_pixel(width, full_h, Rgba([20, 20, 20, 255]));
+
+        for y in 0..content_h {
+            let gy = global_start + y;
+            for x in 0..width {
+                let mut z = (x as u64).wrapping_mul(0x9E3779B97F4A7C15)
+                    ^ (gy as u64).wrapping_mul(0xBF58476D1CE4E5B9);
+                z ^= z >> 30;
+                z = z.wrapping_mul(0xBF58476D1CE4E5B9);
+                z ^= z >> 27;
+                z = z.wrapping_mul(0x94D049BB133111EB);
+                z ^= z >> 31;
+                let mut g = (z >> 56) as u8;
+
+                // Unique marker band at fixed global Y to make overlap unambiguous.
+                if (210..218).contains(&gy) && x < 80 {
+                    g = (x as u8).wrapping_mul(3) ^ 0xA5;
+                }
+
+                img.put_pixel(x, chrome_h + y, Rgba([g, g, g, 255]));
+            }
+        }
+
+        let mut bytes = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut bytes);
+        DynamicImage::ImageRgba8(img)
+            .write_with_encoder(encoder)
+            .unwrap();
+        bytes
+    }
+
     #[test]
     fn test_merge_no_images() {
         let result = merge(vec![], MergeOptions::default());
@@ -319,6 +370,36 @@ mod tests {
         let output_img = decode_image(&output_bytes).unwrap();
         assert_eq!(output_img.width(), 100);
         assert_eq!(output_img.height(), 100); // 50 + 50
+    }
+
+    #[test]
+    fn test_merge_smart_chrome_strip_and_overlap() {
+        // Two images with repeated chrome and overlapping content.
+        let width = 220;
+        let chrome_h = 20;
+        let content_h = 300;
+        let overlap = 100;
+
+        // Top screenshot covers global rows 0..content_h.
+        // Bottom screenshot covers global rows (content_h - overlap)..
+        let img1 = create_smart_fixture_png(width, chrome_h, content_h, 0);
+        let img2 = create_smart_fixture_png(width, chrome_h, content_h, content_h - overlap);
+
+        let options = MergeOptions {
+            direction: Direction::Smart,
+            ..Default::default()
+        };
+
+        let result = merge(vec![img1, img2], options);
+        assert!(result.is_ok());
+
+        let output_bytes = result.unwrap();
+        let output_img = decode_image(&output_bytes).unwrap();
+
+        // Expected height:
+        // 340 + 340 - (top trim 20) - (bottom trim 20) - (overlap 100) = 540
+        assert_eq!(output_img.width(), width);
+        assert_eq!(output_img.height(), 540);
     }
 
     #[test]

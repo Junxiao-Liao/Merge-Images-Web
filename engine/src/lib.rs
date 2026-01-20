@@ -1,3 +1,4 @@
+mod chrome_strip;
 mod dimension;
 mod error;
 mod exif;
